@@ -1,0 +1,68 @@
+<div class="shell" [class.menu-open]="menuOpen()">
+  <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
+    <a class="brand" routerLink="/" (click)="menuOpen.set(false)">
+      <span class="brand-logo"><app-icon name="activity" [size]="20" /></span>
+      <span>Extia <strong>Pulse</strong></span>
+    </a>
+
+    <nav class="nav">
+      @for (item of navItems(); track item.path) {
+        <a
+          class="nav-link"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: !!item.exact }"
+          (click)="menuOpen.set(false)"
+        >
+          <app-icon [name]="item.icon" />{{ item.label }}
+        </a>
+      }
+
+      @if (auth.isAdmin()) {
+        <p class="nav-section">Administration</p>
+        @for (item of adminItems; track item.path) {
+          <a class="nav-link" [routerLink]="item.path" routerLinkActive="active" (click)="menuOpen.set(false)">
+            <app-icon [name]="item.icon" />{{ item.label }}
+          </a>
+        }
+      }
+    </nav>
+
+    @if (auth.currentUser(); as user) {
+      <div class="user-box">
+        <span class="avatar">{{ initials() }}</span>
+        <div class="user-box-info">
+          <strong>{{ user.firstName }} {{ user.lastName }}</strong>
+          <small>{{ user.role | roleLabel }} · {{ poleName() }}</small>
+        </div>
+        <button class="icon-btn" type="button" title="Se déconnecter" aria-label="Se déconnecter" (click)="logout()">
+          <app-icon name="logout" />
+        </button>
+      </div>
+    }
+  </aside>
+
+  <div class="sidebar-backdrop" (click)="menuOpen.set(false)"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button
+        class="icon-btn"
+        type="button"
+        aria-label="Menu"
+        aria-controls="sidebar"
+        [attr.aria-expanded]="menuOpen()"
+        (click)="menuOpen.set(!menuOpen())"
+      >
+        <app-icon name="menu" />
+      </button>
+      <a class="brand" routerLink="/">
+        <span class="brand-logo brand-logo-sm"><app-icon name="activity" [size]="16" /></span>
+        <span>Extia <strong>Pulse</strong></span>
+      </a>
+    </header>
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

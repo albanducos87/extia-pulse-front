@@ -1,0 +1,132 @@
+<header class="page-header">
+  <div>
+    <h1>Utilisateurs</h1>
+    <p class="muted">Gérez les rôles et les pôles des collaborateurs.</p>
+  </div>
+</header>
+
+<form class="card filters" [formGroup]="filters">
+  <label class="field field-search">
+    <span class="sr-only">Rechercher</span>
+    <app-icon name="search" [size]="16" />
+    <input type="search" formControlName="search" placeholder="Nom, prénom ou e-mail…" />
+  </label>
+  <label class="field">
+    <span>Pôle</span>
+    <select formControlName="poleId">
+      <option [ngValue]="null">Tous</option>
+      @for (pole of poles(); track pole.id) {
+        <option [ngValue]="pole.id">{{ pole.name }}</option>
+      }
+    </select>
+  </label>
+  <label class="field">
+    <span>Rôle</span>
+    <select formControlName="role">
+      <option [ngValue]="null">Tous</option>
+      @for (opt of roleOptions; track opt[0]) {
+        <option [ngValue]="opt[0]">{{ opt[1] }}</option>
+      }
+    </select>
+  </label>
+  <label class="field">
+    <span>Statut</span>
+    <select formControlName="active">
+      <option [ngValue]="null">Tous</option>
+      <option [ngValue]="true">Actif</option>
+      <option [ngValue]="false">Inactif</option>
+    </select>
+  </label>
+</form>
+
+<div class="card table-card" [class.is-loading]="loading()">
+  <table class="table table-stack">
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>E-mail</th>
+        <th>Pôle</th>
+        <th>Rôle</th>
+        <th>Statut</th>
+        <th class="actions-col"><span class="sr-only">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (user of users(); track user.id) {
+        <tr>
+          <td class="cell-title">
+            <span class="user-cell">
+              <span class="avatar avatar-sm">{{ user.firstName[0] }}{{ user.lastName[0] }}</span>
+              {{ user.firstName }} {{ user.lastName }}
+            </span>
+          </td>
+          <td class="muted" data-label="E-mail">{{ user.email }}</td>
+          <td data-label="Pôle">{{ poleName(user.poleId) }}</td>
+          <td data-label="Rôle"><span class="chip">{{ user.role | roleLabel }}</span></td>
+          <td data-label="Statut">
+            <span class="badge" [class.badge-published]="user.active" [class.badge-cancelled]="!user.active">
+              {{ user.active ? 'Actif' : 'Inactif' }}
+            </span>
+          </td>
+          <td class="actions-col">
+            <button class="icon-btn" type="button" title="Modifier" aria-label="Modifier" (click)="openEdit(user)">
+              <app-icon name="edit" />
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        @if (!loading()) {
+          <tr><td colspan="6" class="empty">Aucun utilisateur ne correspond à vos filtres.</td></tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (editing(); as user) {
+  <div class="backdrop" (click)="editing.set(null)"></div>
+  <form class="modal" role="dialog" aria-modal="true" aria-label="Modifier l'utilisateur" [formGroup]="editForm" (ngSubmit)="save()" novalidate>
+    <h2>Modifier {{ user.firstName }} {{ user.lastName }}</h2>
+    <div class="field-row">
+      <label class="field">
+        <span>Prénom</span>
+        <input type="text" formControlName="firstName" />
+      </label>
+      <label class="field">
+        <span>Nom</span>
+        <input type="text" formControlName="lastName" />
+      </label>
+    </div>
+    <label class="field">
+      <span>E-mail</span>
+      <input type="email" formControlName="email" />
+      @if (editForm.controls.email.touched && editForm.controls.email.invalid) {
+        <small class="field-error">Adresse e-mail invalide</small>
+      }
+    </label>
+    <div class="field-row">
+      <label class="field">
+        <span>Pôle</span>
+        <select formControlName="poleId">
+          @for (pole of poles(); track pole.id) {
+            <option [ngValue]="pole.id">{{ pole.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        <span>Rôle</span>
+        <select formControlName="role">
+          @for (opt of roleOptions; track opt[0]) {
+            <option [ngValue]="opt[0]">{{ opt[1] }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" (click)="editing.set(null)">Annuler</button>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+      </button>
+    </div>
+  </form>
+}

@@ -1,0 +1,100 @@
+<header class="page-header">
+  <div>
+    <h1>Évènements</h1>
+    <p class="muted">Parcourez et filtrez les évènements de l'entreprise.</p>
+  </div>
+  @if (auth.canManageEvents()) {
+    <a class="btn btn-primary" routerLink="/events/new"><app-icon name="plus" />Créer un évènement</a>
+  }
+</header>
+
+<form class="card filters" [class.filters-open]="filtersOpen()" [formGroup]="filters">
+  <label class="field field-search">
+    <span class="sr-only">Rechercher</span>
+    <app-icon name="search" [size]="16" />
+    <input type="search" formControlName="search" placeholder="Rechercher un évènement…" />
+  </label>
+
+  <button
+    class="btn btn-ghost filters-toggle"
+    type="button"
+    aria-controls="advanced-filters"
+    [attr.aria-expanded]="filtersOpen()"
+    (click)="filtersOpen.set(!filtersOpen())"
+  >
+    <app-icon name="filter" [size]="16" />Filtres
+    @if (activeFilterCount()) {
+      <span class="count-pill">{{ activeFilterCount() }}</span>
+    }
+  </button>
+
+  <div class="filters-advanced" id="advanced-filters">
+
+  <label class="field">
+    <span>Pôle</span>
+    <select formControlName="poleId">
+      <option [ngValue]="null">Tous</option>
+      @for (pole of poles(); track pole.id) {
+        <option [ngValue]="pole.id">{{ pole.name }}</option>
+      }
+    </select>
+  </label>
+  <label class="field">
+    <span>Type</span>
+    <select formControlName="eventTypeId">
+      <option [ngValue]="null">Tous</option>
+      @for (type of eventTypes(); track type.id) {
+        <option [ngValue]="type.id">{{ type.label }}</option>
+      }
+    </select>
+  </label>
+  <label class="field">
+    <span>Statut</span>
+    <select formControlName="status">
+      <option [ngValue]="null">Tous</option>
+      @for (opt of statusOptions; track opt[0]) {
+        <option [ngValue]="opt[0]">{{ opt[1] }}</option>
+      }
+    </select>
+  </label>
+  <label class="field">
+    <span>Visibilité</span>
+    <select formControlName="visibility">
+      <option [ngValue]="null">Toutes</option>
+      @for (opt of visibilityOptions; track opt[0]) {
+        <option [ngValue]="opt[0]">{{ opt[1] }}</option>
+      }
+    </select>
+  </label>
+  <label class="field">
+    <span>Du</span>
+    <input type="date" formControlName="startFrom" />
+  </label>
+  <label class="field">
+    <span>Au</span>
+    <input type="date" formControlName="startTo" />
+  </label>
+
+  <div class="filters-footer">
+    <label class="checkbox"><input type="checkbox" formControlName="mine" />Mes évènements</label>
+    <label class="checkbox"><input type="checkbox" formControlName="includePast" />Inclure les évènements passés</label>
+    <button class="btn btn-ghost btn-sm" type="button" (click)="resetFilters()">
+      <app-icon name="reset" [size]="14" />Réinitialiser
+    </button>
+  </div>
+  </div>
+</form>
+
+<p class="muted small results-count">
+  {{ loading() ? 'Chargement…' : events().length + ' évènement(s)' }}
+</p>
+
+<div class="event-grid" [class.is-loading]="loading()">
+  @for (event of events(); track event.id) {
+    <app-event-card [event]="event" />
+  } @empty {
+    @if (!loading()) {
+      <p class="empty">Aucun évènement ne correspond à vos filtres.</p>
+    }
+  }
+</div>

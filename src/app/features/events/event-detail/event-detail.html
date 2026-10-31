@@ -1,0 +1,128 @@
+<a class="back-link" routerLink="/events"><app-icon name="arrow-left" [size]="16" />Retour aux évènements</a>
+
+@if (loading()) {
+  <div class="loader" aria-label="Chargement"></div>
+} @else if (event(); as e) {
+  @if (e.status === 'CANCELLED') {
+    <div class="alert alert-error">Cet évènement a été annulé.</div>
+  } @else if (e.status === 'DRAFT') {
+    <div class="alert alert-info">Brouillon : cet évènement n'est visible que par son organisateur.</div>
+  }
+
+  <header class="page-header">
+    <div>
+      <div class="event-card-tags">
+        <span class="chip">{{ e.eventTypeLabel }}</span>
+        <span class="badge badge-{{ e.status.toLowerCase() }}">{{ e.status | statusLabel }}</span>
+        <span class="chip chip-outline">{{ e.visibility | visibilityLabel }}</span>
+      </div>
+      <h1>{{ e.title }}</h1>
+      <p class="muted">
+        Organisé par {{ e.creatorFirstName }} {{ e.creatorLastName }} · Pôle {{ e.poleName }}
+      </p>
+    </div>
+    @if (canEdit()) {
+      <div class="actions">
+        @if (e.status === 'DRAFT') {
+          <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="changeStatus('PUBLISHED')">
+            <app-icon name="check" />Publier
+          </button>
+        }
+        <a class="btn btn-ghost" [routerLink]="['/events', e.id, 'edit']"><app-icon name="edit" />Modifier</a>
+        @if (e.status === 'PUBLISHED' && !isPast()) {
+          <button class="btn btn-ghost" type="button" [disabled]="busy()" (click)="changeStatus('CANCELLED')">
+            <app-icon name="x" />Annuler
+          </button>
+        }
+        <button class="btn btn-danger-ghost" type="button" [disabled]="busy()" (click)="delete()">
+          <app-icon name="trash" />Supprimer
+        </button>
+      </div>
+    }
+  </header>
+
+  <div class="detail-layout">
+    <section class="card">
+      <h2>Description</h2>
+      <p class="description">{{ e.description || 'Aucune description.' }}</p>
+    </section>
+
+    <aside class="detail-side">
+      <section class="card">
+        <ul class="meta meta-lg">
+          <li>
+            <app-icon name="calendar" />
+            <div>
+              <strong>{{ e.startAt | date: 'EEEE d MMMM y' }}</strong>
+              <span class="muted">
+                {{ e.startAt | date: 'HH:mm' }}
+                @if (e.endAt) {
+                  – {{ e.endAt | date: (e.endAt.slice(0, 10) === e.startAt.slice(0, 10) ? 'HH:mm' : 'd MMM, HH:mm') }}
+                }
+                @if (e.timezone) {
+                  ({{ e.timezone }})
+                }
+              </span>
+            </div>
+          </li>
+          @if (e.locationName || e.address) {
+            <li>
+              <app-icon name="map-pin" />
+              <div>
+                <strong>{{ e.locationName }}</strong>
+                <span class="muted">{{ e.address }}</span>
+              </div>
+            </li>
+          }
+          @if (e.onlineUrl) {
+            <li>
+              <app-icon name="video" />
+              <div>
+                <strong>En ligne</strong>
+                <a class="link" [href]="e.onlineUrl" target="_blank" rel="noopener">Rejoindre la réunion</a>
+              </div>
+            </li>
+          }
+          <li>
+            <app-icon name="clock" />
+            <div>
+              <strong>Inscriptions jusqu'au</strong>
+              <span class="muted">{{ e.rsvpDeadline | date: 'd MMMM y, HH:mm' }}</span>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>Participants</h2>
+          <strong>{{ participation().count }}@if (e.capacity) { / {{ e.capacity }}}</strong>
+        </div>
+        @if (e.capacity) {
+          <div class="progress" role="progressbar" [attr.aria-valuenow]="fillRate()" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" [style.width.%]="fillRate()"></div>
+          </div>
+        }
+
+        @if (e.status === 'PUBLISHED' && !isPast()) {
+          @if (participation().registered) {
+            <p class="success-text"><app-icon name="check" [size]="16" />Vous êtes inscrit·e</p>
+            <button class="btn btn-ghost btn-block" type="button" [disabled]="busy()" (click)="toggleRegistration()">
+              Se désinscrire
+            </button>
+          } @else if (rsvpClosed()) {
+            <p class="muted small">Les inscriptions sont closes.</p>
+          } @else if (isFull()) {
+            <p class="muted small">L'évènement est complet.</p>
+          } @else {
+            <button class="btn btn-primary btn-block" type="button" [disabled]="busy()" (click)="toggleRegistration()">
+              S'inscrire
+            </button>
+          }
+        } @else if (isPast()) {
+          <p class="muted small">Cet évènement est terminé.</p>
+        }
+      </section>
+    </aside>
+  </div>
+}

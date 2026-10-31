@@ -1,0 +1,56 @@
+<header class="page-header">
+  <div>
+    <h1>Bonjour {{ auth.currentUser()?.firstName }} 👋</h1>
+    <p class="muted">Voici ce qui se passe chez Extia prochainement.</p>
+  </div>
+  @if (auth.canManageEvents()) {
+    <a class="btn btn-primary" routerLink="/events/new"><app-icon name="plus" />Créer un évènement</a>
+  }
+</header>
+
+<section class="stats">
+  @for (stat of stats(); track stat.label) {
+    <div class="card stat">
+      <span class="stat-icon"><app-icon [name]="stat.icon" /></span>
+      <div>
+        <strong class="stat-value">{{ loading() ? '–' : stat.value }}</strong>
+        <span class="muted small">{{ stat.label }}</span>
+      </div>
+    </div>
+  }
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <h2>Prochains évènements</h2>
+    <a class="link" routerLink="/events">Tout voir</a>
+  </div>
+  @if (loading()) {
+    <div class="loader" aria-label="Chargement"></div>
+  } @else {
+    <div class="event-grid">
+      @for (event of nextEvents(); track event.id) {
+        <app-event-card [event]="event" />
+      } @empty {
+        <p class="empty">Aucun évènement à venir pour le moment.</p>
+      }
+    </div>
+  }
+</section>
+
+@if (auth.canManageEvents()) {
+  <section class="section">
+    <div class="section-header">
+      <h2>Mes évènements organisés</h2>
+    </div>
+    @if (!loading()) {
+      <div class="event-grid">
+        @for (event of myEvents(); track event.id) {
+          <app-event-card [event]="event" />
+        } @empty {
+          <p class="empty">Vous n'organisez aucun évènement à venir.</p>
+        }
+      </div>
+    }
+  </section>
+}

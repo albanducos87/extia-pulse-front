@@ -1,0 +1,168 @@
+<a class="back-link" [routerLink]="isEdit() ? ['/events', eventId()] : ['/events']">
+  <app-icon name="arrow-left" [size]="16" />Retour
+</a>
+
+<header class="page-header">
+  <div>
+    <h1>{{ isEdit() ? "Modifier l'évènement" : 'Nouvel évènement' }}</h1>
+    <p class="muted">Les champs marqués d'un * sont obligatoires.</p>
+  </div>
+</header>
+
+@if (loading()) {
+  <div class="loader" aria-label="Chargement"></div>
+} @else {
+  <form class="form-layout" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <section class="card form-section">
+      <h2>Informations générales</h2>
+      <label class="field">
+        <span>Titre *</span>
+        <input type="text" formControlName="title" placeholder="Ex. Afterwork de rentrée" />
+        @if (showError('title')) {
+          <small class="field-error">Le titre est obligatoire</small>
+        }
+      </label>
+      <label class="field">
+        <span>Description</span>
+        <textarea formControlName="description" rows="5" placeholder="Programme, informations pratiques…"></textarea>
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Type d'évènement *</span>
+          <select formControlName="eventTypeId">
+            <option [ngValue]="null" disabled>Choisir…</option>
+            @for (type of eventTypes(); track type.id) {
+              <option [ngValue]="type.id">{{ type.label }}</option>
+            }
+          </select>
+          @if (showError('eventTypeId')) {
+            <small class="field-error">Le type d'évènement est obligatoire</small>
+          }
+        </label>
+        <label class="field">
+          <span>Pôle *</span>
+          <select formControlName="poleId">
+            <option [ngValue]="null" disabled>Choisir…</option>
+            @for (pole of poles(); track pole.id) {
+              <option [ngValue]="pole.id">{{ pole.name }}</option>
+            }
+          </select>
+          @if (showError('poleId')) {
+            <small class="field-error">Le pôle est obligatoire</small>
+          }
+        </label>
+      </div>
+    </section>
+
+    <section class="card form-section">
+      <h2>Date et heure</h2>
+      <div class="field-row">
+        <label class="field">
+          <span>Début *</span>
+          <input type="datetime-local" formControlName="startDate" />
+          @if (showError('startDate')) {
+            <small class="field-error">La date de début est obligatoire</small>
+          }
+        </label>
+        <label class="field">
+          <span>Fin</span>
+          <input type="datetime-local" formControlName="endDate" />
+          @if (showGroupError('endBeforeStart', 'endDate', 'startDate')) {
+            <small class="field-error">La date de fin doit être postérieure à la date de début</small>
+          }
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field">
+          <span>Fuseau horaire</span>
+          <select formControlName="timeZone">
+            @for (tz of timeZones; track tz) {
+              <option [value]="tz">{{ tz }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span>Date limite d'inscription *</span>
+          <input type="datetime-local" formControlName="rsvpDeadline" />
+          @if (showError('rsvpDeadline')) {
+            <small class="field-error">La date limite d'inscription est obligatoire</small>
+          } @else if (showGroupError('rsvpAfterStart', 'rsvpDeadline', 'startDate')) {
+            <small class="field-error">La date limite d'inscription doit précéder le début de l'évènement</small>
+          }
+        </label>
+      </div>
+    </section>
+
+    <section class="card form-section">
+      <h2>Lieu</h2>
+      <div class="field-row">
+        <label class="field">
+          <span>Nom du lieu</span>
+          <input type="text" formControlName="locationName" placeholder="Ex. Salle Eiffel" />
+        </label>
+        <label class="field">
+          <span>Adresse</span>
+          <input type="text" formControlName="address" placeholder="Numéro, rue, ville" />
+        </label>
+      </div>
+      <label class="field">
+        <span>Lien de visioconférence</span>
+        <input type="url" formControlName="onlineUrl" placeholder="https://…" />
+        @if (showError('onlineUrl')) {
+          <small class="field-error">L'URL doit commencer par http:// ou https://</small>
+        }
+      </label>
+      @if (showGroupError('locationRequired', 'address', 'onlineUrl')) {
+        <small class="field-error">Renseignez une adresse ou un lien de visioconférence</small>
+      }
+    </section>
+
+    <section class="card form-section">
+      <h2>Participation et diffusion</h2>
+      <div class="field-row">
+        <label class="field">
+          <span>Capacité *</span>
+          <input type="number" min="1" formControlName="capacity" placeholder="Nombre de places" />
+          @if (showError('capacity')) {
+            <small class="field-error">La capacité doit être un nombre positif</small>
+          }
+        </label>
+        <label class="field">
+          <span>Visibilité *</span>
+          <select formControlName="visibility">
+            @for (opt of visibilityOptions; track opt[0]) {
+              <option [ngValue]="opt[0]">{{ opt[1] }}</option>
+            }
+          </select>
+        </label>
+      </div>
+      <fieldset class="field">
+        <legend>Statut *</legend>
+        <div class="segmented">
+          @for (opt of statusOptions; track opt[0]) {
+            <label [class.active]="form.controls.status.value === opt[0]">
+              <input type="radio" formControlName="status" [value]="opt[0]" />{{ opt[1] }}
+            </label>
+          }
+        </div>
+      </fieldset>
+    </section>
+
+    @if (serverErrors().length) {
+      <div class="alert alert-error">
+        <ul>
+          @for (error of serverErrors(); track error) {
+            <li>{{ error }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <div class="form-actions">
+      <a class="btn btn-ghost" [routerLink]="isEdit() ? ['/events', eventId()] : ['/events']">Annuler</a>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Enregistrement…' : isEdit() ? 'Enregistrer' : "Créer l'évènement" }}
+      </button>
+    </div>
+  </form>
+}

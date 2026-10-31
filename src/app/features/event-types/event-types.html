@@ -1,0 +1,73 @@
+<header class="page-header">
+  <div>
+    <h1>Types d'évènements</h1>
+    <p class="muted">Catégories proposées lors de la création d'un évènement.</p>
+  </div>
+</header>
+
+<form class="card inline-form" [formGroup]="createForm" (ngSubmit)="create()" novalidate>
+  <label class="field">
+    <span>Code</span>
+    <input type="text" formControlName="code" placeholder="AFTERWORK" (input)="upperCaseCode(createForm)" />
+    @if (createForm.controls.code.touched && createForm.controls.code.invalid) {
+      <small class="field-error">Majuscules, chiffres et _ uniquement</small>
+    }
+  </label>
+  <label class="field">
+    <span>Libellé</span>
+    <input type="text" formControlName="label" placeholder="Afterwork" />
+    @if (createForm.controls.label.touched && createForm.controls.label.invalid) {
+      <small class="field-error">Le libellé est obligatoire</small>
+    }
+  </label>
+  <button class="btn btn-primary" type="submit"><app-icon name="plus" />Ajouter</button>
+</form>
+
+<div class="card table-card">
+  @if (loading()) {
+    <div class="loader" aria-label="Chargement"></div>
+  } @else {
+    <table class="table table-stack">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Libellé</th>
+          <th class="actions-col"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (type of types(); track type.id) {
+          @if (editingId() === type.id) {
+            <tr [formGroup]="editForm">
+              <td data-label="Code"><input type="text" formControlName="code" aria-label="Code" (input)="upperCaseCode(editForm)" /></td>
+              <td data-label="Libellé"><input type="text" formControlName="label" aria-label="Libellé" (keydown.enter)="saveEdit()" /></td>
+              <td class="actions-col">
+                <button class="icon-btn" type="button" title="Enregistrer" aria-label="Enregistrer" (click)="saveEdit()">
+                  <app-icon name="check" />
+                </button>
+                <button class="icon-btn" type="button" title="Annuler" aria-label="Annuler" (click)="editingId.set(null)">
+                  <app-icon name="x" />
+                </button>
+              </td>
+            </tr>
+          } @else {
+            <tr>
+              <td data-label="Code"><code>{{ type.code }}</code></td>
+              <td data-label="Libellé">{{ type.label }}</td>
+              <td class="actions-col">
+                <button class="icon-btn" type="button" title="Modifier" aria-label="Modifier" (click)="startEdit(type)">
+                  <app-icon name="edit" />
+                </button>
+                <button class="icon-btn icon-btn-danger" type="button" title="Supprimer" aria-label="Supprimer" (click)="remove(type)">
+                  <app-icon name="trash" />
+                </button>
+              </td>
+            </tr>
+          }
+        } @empty {
+          <tr><td colspan="3" class="empty">Aucun type d'évènement.</td></tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

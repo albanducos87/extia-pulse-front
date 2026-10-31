@@ -1,0 +1,43 @@
+<div class="login-page">
+  <div class="login-card card">
+    <div class="brand brand-lg">
+      <span class="brand-logo"><app-icon name="activity" [size]="22" /></span>
+      <span>Extia <strong>Pulse</strong></span>
+    </div>
+    <p class="muted">Les évènements de votre pôle et de toute l'entreprise, au même endroit.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <label class="field">
+        <span>Adresse e-mail</span>
+        <input type="email" formControlName="email" autocomplete="username" placeholder="prenom.nom@extia.fr" />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <small class="field-error">Adresse e-mail invalide</small>
+        }
+      </label>
+      <label class="field">
+        <span>Mot de passe</span>
+        <input type="password" formControlName="password" autocomplete="current-password" />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <small class="field-error">Mot de passe requis</small>
+        }
+      </label>
+
+      @if (error()) {
+        <div class="alert alert-error">{{ error() }}</div>
+      }
+
+      <button class="btn btn-primary btn-block" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Connexion…' : 'Se connecter' }}
+      </button>
+    </form>
+
+    <div class="demo-accounts">
+      <p class="muted small">Comptes de démonstration</p>
+      @for (user of demoAccounts; track user.id) {
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="submitting()" (click)="useDemo(user.email)">
+          {{ user.firstName }} · {{ user.role | roleLabel }}
+        </button>
+      }
+    </div>
+  </div>
+</div>

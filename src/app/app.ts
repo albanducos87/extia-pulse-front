@@ -1,12 +1,11 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ConfirmDialog } from './shared/components/confirm-dialog';
+import { ToastContainer } from './shared/components/toast-container';
 
 @Component({
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, ToastContainer, ConfirmDialog],
   selector: 'app-root',
-  styleUrl: './app.css',
   templateUrl: './app.html',
 })
-export class App {
-  protected readonly title = signal('extia-pulse-front');
-}
+export class App {}
