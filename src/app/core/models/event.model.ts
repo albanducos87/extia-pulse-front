@@ -1,3 +1,5 @@
+import { AppUser } from "./user.model";
+
 export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED';
 export type Visibility = 'PRIVATE' | 'POLE' | 'COMPANY';
 
@@ -16,14 +18,13 @@ export interface PulseEvent {
   creatorLastName: string;
   startAt: string;
   endAt: string | null;
-  timezone: string | null;
   locationName: string | null;
   address: string | null;
   onlineUrl: string | null;
   capacity: number | null;
   rsvpDeadline: string;
-  visibility: Visibility;
   status: EventStatus;
+  participants: AppUser[] | null;
 }
 
 /** Mirrors the query params of GET /api/events, plus client-side search. */
@@ -40,19 +41,18 @@ export interface EventFilter {
 
 /** Mirrors CreateEventRequestDto / UpdateEventRequestDto. */
 export interface EventRequest {
+  id?: number | null;
   title: string;
-  description: string | null;
-  eventTypeId: number;
-  poleId: number;
   startDate: string;
   endDate: string | null;
-  timeZone: string | null;
+  poleId: number;
+  eventTypeId: number;
+  description: string | null;
   locationName: string | null;
   address: string | null;
   onlineUrl: string | null;
   capacity: number | null;
   rsvpDeadline: string;
-  visibility: Visibility;
   status: EventStatus;
 }
 

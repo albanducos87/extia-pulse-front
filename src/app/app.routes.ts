@@ -1,23 +1,28 @@
 import { Routes } from '@angular/router';
-import { adminGuard, authGuard, eventManagerGuard, guestGuard } from './core/guards/auth.guard';
+import { eventManagerGuard, adminGuard } from './core/guards/auth.guard';
 import { Shell } from './layout/shell/shell';
+import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 
 export const routes: Routes = [
   {
-    path: 'login',
-    title: 'Connexion · Extia Pulse',
-    canActivate: [guestGuard],
-    loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
+    path: 'callback',
+    loadComponent: () => import('./features/auth/callback/callback').then((m) => m.Callback)
   },
   {
     path: '',
     component: Shell,
-    canActivate: [authGuard],
+    canActivate: [autoLoginPartialRoutesGuard],
+    canActivateChild: [autoLoginPartialRoutesGuard],
     children: [
       {
         path: '',
         title: 'Tableau de bord · Extia Pulse',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
+      },
+      {
+        path: 'profile',
+        title: 'Mon profil · Extia Pulse',
+        loadComponent: () => import('./features/profile/profile').then((m) => m.Profile)
       },
       {
         path: 'events',

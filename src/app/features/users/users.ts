@@ -2,16 +2,15 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, startWith, switchMap, tap } from 'rxjs';
-import { AppUser, USER_ROLE_LABELS, UserRole } from '../../core/models/user.model';
+import { AppUser, role, UserRole } from '../../core/models/user.model';
 import { PoleService } from '../../core/services/pole.service';
 import { ToastService } from '../../core/services/toast.service';
 import { UserService } from '../../core/services/user.service';
 import { Icon } from '../../shared/components/icon';
-import { RoleLabelPipe } from '../../shared/pipes/labels.pipe';
 
 @Component({
   selector: 'app-users',
-  imports: [ReactiveFormsModule, Icon, RoleLabelPipe],
+  imports: [ReactiveFormsModule, Icon],
   templateUrl: './users.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'editing.set(null)' },
@@ -22,7 +21,7 @@ export class Users {
   private readonly fb = inject(FormBuilder);
 
   protected readonly poles = toSignal(inject(PoleService).getPoles(), { initialValue: [] });
-  protected readonly roleOptions = Object.entries(USER_ROLE_LABELS) as [UserRole, string][];
+  protected readonly roles = Object.values(role);
   private readonly poleNames = computed(
     () => new Map(this.poles().map((p) => [p.id, p.name] as const)),
   );
@@ -45,6 +44,7 @@ export class Users {
     email: ['', [Validators.required, Validators.email]],
     poleId: [0, Validators.required],
     role: ['EMPLOYEE' as UserRole, Validators.required],
+    active: [true],
   });
 
   constructor() {
@@ -72,8 +72,9 @@ export class Users {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      poleId: user.poleId,
+      poleId: user.pole.id,
       role: user.role,
+      active: user.active,
     });
   }
 
@@ -83,8 +84,10 @@ export class Users {
       this.editForm.markAllAsTouched();
       return;
     }
+    const { poleId, ...changes } = this.editForm.getRawValue();
+    const pole = this.poles().find((p) => p.id === poleId) ?? user.pole;
     this.saving.set(true);
-    this.userService.update({ ...user, ...this.editForm.getRawValue() }).subscribe({
+    this.userService.update({ ...user, ...changes, pole }).subscribe({
       next: (updated) => {
         this.users.update((list) => list.map((u) => (u.id === updated.id ? updated : u)));
         this.saving.set(false);

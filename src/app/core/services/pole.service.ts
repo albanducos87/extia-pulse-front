@@ -1,13 +1,15 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { MOCK_POLES } from '../data/mock-data';
 import { Pole } from '../models/pole.model';
-import { mockResponse } from './mock-http';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment.dev';
 
 @Injectable({ providedIn: 'root' })
 export class PoleService {
-  // TODO: no pole endpoint exists in eventApi yet.
+  
+  private readonly http = inject(HttpClient);
+
   getPoles(): Observable<Pole[]> {
-    return mockResponse(() => MOCK_POLES);
+    return this.http.get<Pole[]>(`${environment.apiUrl}/pole`);
   }
 }

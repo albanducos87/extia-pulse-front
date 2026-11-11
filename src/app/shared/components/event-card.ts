@@ -2,12 +2,12 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PulseEvent } from '../../core/models/event.model';
-import { StatusLabelPipe, VisibilityLabelPipe } from '../pipes/labels.pipe';
+import { StatusLabelPipe } from '../pipes/labels.pipe';
 import { Icon } from './icon';
 
 @Component({
   selector: 'app-event-card',
-  imports: [RouterLink, DatePipe, Icon, StatusLabelPipe, VisibilityLabelPipe],
+  imports: [RouterLink, DatePipe, Icon, StatusLabelPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let e = event();
@@ -29,7 +29,6 @@ import { Icon } from './icon';
           } @else if (e.onlineUrl) {
             <li><app-icon name="video" [size]="14" />En ligne</li>
           }
-          <li><app-icon name="eye" [size]="14" />{{ e.visibility | visibilityLabel }} · {{ e.poleName }}</li>
         </ul>
       </div>
     </a>

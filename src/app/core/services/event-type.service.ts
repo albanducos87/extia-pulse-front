@@ -1,45 +1,49 @@
-import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { inject, Injectable } from '@angular/core';
+import { Observable, tap } from 'rxjs';
 import { MOCK_EVENT_TYPES } from '../data/mock-data';
 import { EventType } from '../models/event-type.model';
-import { ApiError, mockResponse } from './mock-http';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { environment } from '../../../environments/environment.dev';
 
-/** In-memory stand-in for /api/event-types. */
 @Injectable({ providedIn: 'root' })
 export class EventTypeService {
-  private types: EventType[] = [...MOCK_EVENT_TYPES];
-  private nextId = Math.max(...this.types.map((t) => t.id)) + 1;
+  private readonly http = inject(HttpClient);
 
-  getAll(): Observable<EventType[]> {
-    return mockResponse(() => this.types);
+  private types: EventType[] = [...MOCK_EVENT_TYPES];
+
+  getAllEventTypes(): Observable<EventType[]> {
+    return this.http.get<EventType[]>(`${environment.apiUrl}/event-types`);
   }
 
   create(code: string, label: string): Observable<EventType> {
-    return mockResponse(() => {
-      this.assertCodeIsFree(code);
-      const created = { id: this.nextId++, code, label };
-      this.types = [...this.types, created];
-      return created;
-    });
+    const params = new HttpParams()
+      .set('code', code)
+      .set('label', label);
+
+    return this.http.post<EventType>(`${environment.apiUrl}/event-types/create`, null, {params});
+    
   }
 
-  update(type: EventType): Observable<EventType> {
-    return mockResponse(() => {
-      this.assertCodeIsFree(type.code, type.id);
-      this.types = this.types.map((t) => (t.id === type.id ? type : t));
-      return type;
-    });
+  update(id: number, code: string, label: string): Observable<EventType> {
+    const params = new HttpParams()
+      .set('id', id)
+      .set('code', code)
+      .set('label', label);
+
+    return this.http.put<EventType>(`${environment.apiUrl}/event-types/update`, null, {params}).pipe(
+      tap((updated) => {
+        this.types = this.types.map((t) => (t.id === updated.id ? updated : t));
+        return updated;
+      })
+    );
   }
 
   delete(id: number): Observable<void> {
-    return mockResponse(() => {
-      this.types = this.types.filter((t) => t.id !== id);
-    });
-  }
-
-  private assertCodeIsFree(code: string, exceptId?: number): void {
-    if (this.types.some((t) => t.code === code && t.id !== exceptId)) {
-      throw new ApiError([`Le code « ${code} » existe déjà`]);
-    }
+    return this.http.delete<void>(`${environment.apiUrl}/event-types/delete/${id}`).pipe(
+      tap(() => {
+        this.types = this.types.filter((t) => t.id !== id);
+      })
+    );
+    
   }
 }

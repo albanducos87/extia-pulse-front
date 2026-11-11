@@ -30,7 +30,7 @@ export class EventList {
   private readonly eventService = inject(EventService);
 
   protected readonly poles = toSignal(inject(PoleService).getPoles(), { initialValue: [] });
-  protected readonly eventTypes = toSignal(inject(EventTypeService).getAll(), { initialValue: [] });
+  protected readonly eventTypes = toSignal(inject(EventTypeService).getAllEventTypes(), { initialValue: [] });
   protected readonly statusOptions = Object.entries(EVENT_STATUS_LABELS) as [EventStatus, string][];
   protected readonly visibilityOptions = Object.entries(VISIBILITY_LABELS) as [Visibility, string][];
 
@@ -81,14 +81,13 @@ export class EventList {
   private toFilter(): EventFilter {
     const f = this.filters.getRawValue();
     const today = toLocalDateTime(new Date()).slice(0, 10);
-    const startFrom = f.startFrom || (f.includePast ? null : today);
     return {
       search: f.search,
       poleId: f.poleId,
       eventTypeId: f.eventTypeId,
       status: f.status,
       visibility: f.visibility,
-      startFrom: startFrom ? `${startFrom}T00:00:00` : null,
+      startFrom: f.startFrom ? `${f.startFrom}T00:00:00` : null,
       startTo: f.startTo ? `${f.startTo}T23:59:59` : null,
       creatorId: f.mine ? this.auth.currentUser()?.id : null,
     };

@@ -32,7 +32,7 @@
       <div class="user-box">
         <span class="avatar">{{ initials() }}</span>
         <div class="user-box-info">
-          <strong>{{ user.firstName }} {{ user.lastName }}</strong>
+          <a routerLink="/profile" (click)="menuOpen.set(false)"><strong>{{ user.firstName }} {{ user.lastName }}</strong></a>
           <small>{{ user.role | roleLabel }} · {{ poleName() }}</small>
         </div>
         <button class="icon-btn" type="button" title="Se déconnecter" aria-label="Se déconnecter" (click)="logout()">

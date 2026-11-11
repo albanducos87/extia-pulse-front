@@ -1,4 +1,4 @@
-<a class="back-link" routerLink="/events"><app-icon name="arrow-left" [size]="16" />Retour aux évènements</a>
+<a class="back-link" href="/events" (click)="goBack($event)"><app-icon name="arrow-left" [size]="16" />Retour</a>
 
 @if (loading()) {
   <div class="loader" aria-label="Chargement"></div>
@@ -14,7 +14,6 @@
       <div class="event-card-tags">
         <span class="chip">{{ e.eventTypeLabel }}</span>
         <span class="badge badge-{{ e.status.toLowerCase() }}">{{ e.status | statusLabel }}</span>
-        <span class="chip chip-outline">{{ e.visibility | visibilityLabel }}</span>
       </div>
       <h1>{{ e.title }}</h1>
       <p class="muted">
@@ -59,9 +58,6 @@
                 @if (e.endAt) {
                   – {{ e.endAt | date: (e.endAt.slice(0, 10) === e.startAt.slice(0, 10) ? 'HH:mm' : 'd MMM, HH:mm') }}
                 }
-                @if (e.timezone) {
-                  ({{ e.timezone }})
-                }
               </span>
             </div>
           </li>
@@ -96,7 +92,7 @@
       <section class="card">
         <div class="section-header">
           <h2>Participants</h2>
-          <strong>{{ participation().count }}@if (e.capacity) { / {{ e.capacity }}}</strong>
+          <strong>{{ e.participants?.length }}@if (e.capacity) { / {{ e.capacity }}}</strong>
         </div>
         @if (e.capacity) {
           <div class="progress" role="progressbar" [attr.aria-valuenow]="fillRate()" aria-valuemin="0" aria-valuemax="100">

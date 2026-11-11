@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, Location } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -9,11 +9,11 @@ import { ConfirmService } from '../../../core/services/confirm.service';
 import { EventService, Participation } from '../../../core/services/event.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Icon } from '../../../shared/components/icon';
-import { StatusLabelPipe, VisibilityLabelPipe } from '../../../shared/pipes/labels.pipe';
+import { StatusLabelPipe } from '../../../shared/pipes/labels.pipe';
 
 @Component({
   selector: 'app-event-detail',
-  imports: [RouterLink, DatePipe, Icon, StatusLabelPipe, VisibilityLabelPipe],
+  imports: [RouterLink, DatePipe, Icon, StatusLabelPipe],
   templateUrl: './event-detail.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -23,6 +23,7 @@ export class EventDetail {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
 
   protected readonly event = signal<PulseEvent | null>(null);
   protected readonly participation = signal<Participation>({ count: 0, registered: false });
@@ -71,9 +72,24 @@ export class EventDetail {
         },
         error: (err) => {
           this.toast.error(err);
-          this.router.navigate(['/events']);
+          this.router.navigate(['/events'], { replaceUrl: true });
         },
       });
+  }
+
+  protected goBack(domEvent: MouseEvent): void {
+    domEvent.preventDefault();
+    // Fall back to the list when the page was opened directly (no in-app history).
+    if (this.router.lastSuccessfulNavigation()?.previousNavigation) {
+      this.location.back();
+    } else {
+      this.router.navigate(['/events'], { replaceUrl: true });
+    }
+  }
+
+  protected addParticipant(): void {
+    const event = this.event()!;
+    
   }
 
   protected toggleRegistration(): void {
@@ -132,7 +148,7 @@ export class EventDetail {
     this.eventService.delete(event.id).subscribe({
       next: () => {
         this.toast.success('Évènement supprimé');
-        this.router.navigate(['/events']);
+        this.router.navigate(['/events'], { replaceUrl: true });
       },
       error: (err) => {
         this.busy.set(false);

@@ -21,12 +21,16 @@ export class ToastService {
   }
 
   error(errorOrMessage: unknown): void {
-    const message =
-      errorOrMessage instanceof ApiError
-        ? errorOrMessage.errors.join(' · ')
-        : typeof errorOrMessage === 'string'
-          ? errorOrMessage
-          : 'Une erreur inattendue est survenue';
+    let message = 'Une erreur inattendue est survenue';
+
+    if (errorOrMessage instanceof ApiError) {
+      message = errorOrMessage.errors.join(' · ');
+    } else if (typeof errorOrMessage === 'string') {
+      message = errorOrMessage; 
+    } else if (typeof errorOrMessage === 'object' && errorOrMessage !== null) {
+      const body = (errorOrMessage as any).error;
+      message = typeof body === 'string' ? body : body?.detail ?? body?.message ?? message;
+    } 
     this.show('error', message);
   }
 

@@ -1,9 +1,11 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { MOCK_EVENTS, MOCK_EVENT_TYPES, MOCK_PARTICIPANT_COUNTS, enrichEvent } from '../data/mock-data';
+import { map, Observable, switchMap } from 'rxjs';
+import { MOCK_PARTICIPANT_COUNTS, enrichEvent } from '../data/mock-data';
 import { EventFilter, EventRequest, PulseEvent } from '../models/event.model';
 import { AuthService } from './auth.service';
 import { ApiError, mockResponse } from './mock-http';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { environment } from '../../../environments/environment.dev';
 
 export interface Participation {
   count: number;
@@ -14,71 +16,75 @@ export interface Participation {
 @Injectable({ providedIn: 'root' })
 export class EventService {
   private readonly auth = inject(AuthService);
+  private readonly http = inject(HttpClient);
+  private readonly apiEventUrl = `${environment.apiUrl}/events`;
 
-  private events: PulseEvent[] = [...MOCK_EVENTS];
-  private nextId = Math.max(...this.events.map((e) => e.id)) + 1;
   private participantCounts: Record<number, number> = { ...MOCK_PARTICIPANT_COUNTS };
   private registrations = new Set<number>();
 
   getEvents(filter: EventFilter = {}): Observable<PulseEvent[]> {
-    return mockResponse(() => {
-      const search = filter.search?.trim().toLowerCase();
-      return this.events
-        .filter(
-          (e) =>
-            (filter.poleId == null || e.poleId === filter.poleId) &&
-            (filter.creatorId == null || e.creatorId === filter.creatorId) &&
-            (filter.eventTypeId == null || e.eventTypeId === filter.eventTypeId) &&
-            (filter.visibility == null || e.visibility === filter.visibility) &&
-            (filter.status == null || e.status === filter.status) &&
-            (!filter.startFrom || e.startAt >= filter.startFrom) &&
-            (!filter.startTo || e.startAt <= filter.startTo) &&
-            (!search ||
-              `${e.title} ${e.description ?? ''} ${e.locationName ?? ''}`
-                .toLowerCase()
-                .includes(search)),
-        )
-        .sort((a, b) => a.startAt.localeCompare(b.startAt));
-    });
+
+    return this.http.get<PulseEvent[]>(this.apiEventUrl).pipe(
+      map((events: PulseEvent[]) => {
+
+        const search = filter.search?.trim().toLocaleLowerCase();
+
+        return events.filter(
+            (e) => 
+              (filter.poleId == null || e.poleId === filter.poleId) &&
+              (filter.creatorId == null || e.creatorId === filter.creatorId) &&
+              (filter.eventTypeId == null || e.eventTypeId === filter.eventTypeId) &&
+              (filter.status == null || e.status === filter.status) &&
+              (!filter.startFrom || e.startAt >= filter.startFrom) &&
+              (!filter.startTo || e.startAt <= filter.startTo) &&
+              (!search ||
+                `${e.title} ${e.description ?? ''} ${e.locationName ?? ''}`
+                  .toLowerCase()
+                  .includes(search))
+          ).sort((a, b) => a.startAt.localeCompare(b.startAt))
+      })
+    )
+  }
+
+  getEventsCreatedByCurrentUser(): Observable<PulseEvent[]> {
+    return this.auth.loadCurrentUser().pipe(
+      switchMap((user) =>
+        this.http.get<PulseEvent[]>(`${this.apiEventUrl}/getEventsByCreatorId/${user.id}`)
+      )
+    );
   }
 
   getEvent(id: number): Observable<PulseEvent> {
-    return mockResponse(() => this.findOrThrow(id));
+    return this.http.get<PulseEvent>(`${this.apiEventUrl}/${id}`);
   }
 
   create(request: EventRequest): Observable<PulseEvent> {
-    return mockResponse(() => {
-      this.validate(request);
-      const creatorId = this.auth.currentUser()?.id ?? 0;
-      const created = this.toEvent(this.nextId++, creatorId, request);
-      this.events = [...this.events, created];
-      return created;
-    });
+    console.log("request", request)
+
+    this.validate(request);
+
+    return this.http.post<PulseEvent>(`${this.apiEventUrl}/create`, request);
+
   }
 
   update(id: number, request: EventRequest): Observable<PulseEvent> {
-    return mockResponse(() => {
-      const existing = this.findOrThrow(id);
-      this.validate(request);
-      const updated = this.toEvent(id, existing.creatorId, request);
-      this.events = this.events.map((e) => (e.id === id ? updated : e));
-      return updated;
-    });
+    console.log("request", request)
+    request.id = id;
+    this.validate(request);
+    return this.http.put<PulseEvent>(`${this.apiEventUrl}/update/${id}`, request);
   }
 
   updateStatus(id: number, status: PulseEvent['status']): Observable<PulseEvent> {
-    return mockResponse(() => {
-      const updated = { ...this.findOrThrow(id), status };
-      this.events = this.events.map((e) => (e.id === id ? updated : e));
-      return updated;
-    });
+    const params = new HttpParams()
+      .set('id', id)
+      .set('status', status);
+
+    return this.http.put<PulseEvent>(`${this.apiEventUrl}/updateStatus/${id}/${status}`, null, {params});
+    
   }
 
   delete(id: number): Observable<void> {
-    return mockResponse(() => {
-      this.findOrThrow(id);
-      this.events = this.events.filter((e) => e.id !== id);
-    });
+    return this.http.delete<void>(`${this.apiEventUrl}/delete/${id}`);
   }
 
   // --- Participation (no backend endpoint yet) ---
@@ -88,16 +94,17 @@ export class EventService {
   }
 
   toggleRegistration(id: number): Observable<Participation> {
+
     return mockResponse(() => {
       const event = this.findOrThrow(id);
       const registered = this.registrations.has(id);
       if (!registered) {
         const { count } = this.participation(id);
         if (event.capacity != null && count >= event.capacity) {
-          throw new ApiError(['L’évènement est complet']);
+          throw new ApiError([`L'évènement est complet`]);
         }
         if (new Date(event.rsvpDeadline) < new Date()) {
-          throw new ApiError(['La date limite d’inscription est dépassée']);
+          throw new ApiError([`La date limite d'inscription est dépassée`]);
         }
         this.registrations.add(id);
       } else {
@@ -113,7 +120,7 @@ export class EventService {
   }
 
   private findOrThrow(id: number): PulseEvent {
-    const event = this.events.find((e) => e.id === id);
+    const event = this.eventsMock.find((e) => e.id === id);
     if (!event) {
       throw new ApiError([`L'évènement avec id ${id} n'existe pas`]);
     }
@@ -130,14 +137,13 @@ export class EventService {
       poleId: r.poleId,
       startAt: r.startDate,
       endAt: r.endDate,
-      timezone: r.timeZone,
       locationName: r.locationName,
       address: r.address,
       onlineUrl: r.onlineUrl,
       capacity: r.capacity,
       rsvpDeadline: r.rsvpDeadline,
-      visibility: r.visibility,
       status: r.status,
+      participants: null
     });
   }
 
@@ -152,9 +158,6 @@ export class EventService {
     }
     if (r.capacity == null || r.capacity <= 0) {
       errors.push('La capacité doit être positive');
-    }
-    if (!MOCK_EVENT_TYPES.some((t) => t.id === r.eventTypeId)) {
-      errors.push("Type d'évènement introuvable : " + r.eventTypeId);
     }
     if (errors.length) {
       throw new ApiError(errors);

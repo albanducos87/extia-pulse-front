@@ -24,8 +24,8 @@
     <span>Rôle</span>
     <select formControlName="role">
       <option [ngValue]="null">Tous</option>
-      @for (opt of roleOptions; track opt[0]) {
-        <option [ngValue]="opt[0]">{{ opt[1] }}</option>
+      @for (role of roles; track role) {
+        <option [ngValue]="role">{{ role }}</option>
       }
     </select>
   </label>
@@ -61,8 +61,8 @@
             </span>
           </td>
           <td class="muted" data-label="E-mail">{{ user.email }}</td>
-          <td data-label="Pôle">{{ poleName(user.poleId) }}</td>
-          <td data-label="Rôle"><span class="chip">{{ user.role | roleLabel }}</span></td>
+          <td data-label="Pôle">{{ user.pole.name }}</td>
+          <td data-label="Rôle"><span class="chip">{{ user.role }}</span></td>
           <td data-label="Statut">
             <span class="badge" [class.badge-published]="user.active" [class.badge-cancelled]="!user.active">
               {{ user.active ? 'Actif' : 'Inactif' }}
@@ -116,12 +116,16 @@
       <label class="field">
         <span>Rôle</span>
         <select formControlName="role">
-          @for (opt of roleOptions; track opt[0]) {
-            <option [ngValue]="opt[0]">{{ opt[1] }}</option>
+          @for (role of roles; track role) {
+            <option [ngValue]="role">{{ role }}</option>
           }
         </select>
       </label>
     </div>
+    <label class="checkbox">
+      <input type="checkbox" formControlName="active" />
+      <span>Compte actif</span>
+    </label>
     <div class="modal-actions">
       <button class="btn btn-ghost" type="button" (click)="editing.set(null)">Annuler</button>
       <button class="btn btn-primary" type="submit" [disabled]="saving()">

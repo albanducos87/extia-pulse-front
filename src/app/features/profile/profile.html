@@ -1,0 +1,35 @@
+<header class="page-header">
+  <div>
+    <h1>Mon profil</h1>
+    <p class="muted">Modifiez votre prénom et votre nom.</p>
+  </div>
+</header>
+
+@if (auth.currentUser(); as user) {
+  <form class="card form-section" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <div class="field-row">
+      <label class="field">
+        <span>Prénom *</span>
+        <input type="text" formControlName="firstName" />
+        @if (showError('firstName')) {
+          <small class="field-error">Le prénom est obligatoire</small>
+        }
+      </label>
+      <label class="field">
+        <span>Nom *</span>
+        <input type="text" formControlName="lastName" />
+        @if (showError('lastName')) {
+          <small class="field-error">Le nom est obligatoire</small>
+        }
+      </label>
+    </div>
+
+    <p class="muted">{{ user.email }} · {{ user.role | roleLabel }}</p>
+
+    <button class="btn btn-primary" type="submit" [disabled]="saving()">
+      {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+    </button>
+  </form>
+} @else {
+  <div class="loader" aria-label="Chargement"></div>
+}

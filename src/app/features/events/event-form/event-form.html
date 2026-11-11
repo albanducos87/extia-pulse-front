@@ -1,4 +1,4 @@
-<a class="back-link" [routerLink]="isEdit() ? ['/events', eventId()] : ['/events']">
+<a class="back-link" [href]="backUrl()" (click)="goBack($event)">
   <app-icon name="arrow-left" [size]="16" />Retour
 </a>
 
@@ -74,14 +74,6 @@
       </div>
       <div class="field-row">
         <label class="field">
-          <span>Fuseau horaire</span>
-          <select formControlName="timeZone">
-            @for (tz of timeZones; track tz) {
-              <option [value]="tz">{{ tz }}</option>
-            }
-          </select>
-        </label>
-        <label class="field">
           <span>Date limite d'inscription *</span>
           <input type="datetime-local" formControlName="rsvpDeadline" />
           @if (showError('rsvpDeadline')) {
@@ -127,25 +119,7 @@
             <small class="field-error">La capacité doit être un nombre positif</small>
           }
         </label>
-        <label class="field">
-          <span>Visibilité *</span>
-          <select formControlName="visibility">
-            @for (opt of visibilityOptions; track opt[0]) {
-              <option [ngValue]="opt[0]">{{ opt[1] }}</option>
-            }
-          </select>
-        </label>
       </div>
-      <fieldset class="field">
-        <legend>Statut *</legend>
-        <div class="segmented">
-          @for (opt of statusOptions; track opt[0]) {
-            <label [class.active]="form.controls.status.value === opt[0]">
-              <input type="radio" formControlName="status" [value]="opt[0]" />{{ opt[1] }}
-            </label>
-          }
-        </div>
-      </fieldset>
     </section>
 
     @if (serverErrors().length) {
@@ -159,7 +133,7 @@
     }
 
     <div class="form-actions">
-      <a class="btn btn-ghost" [routerLink]="isEdit() ? ['/events', eventId()] : ['/events']">Annuler</a>
+      <a class="btn btn-ghost" [href]="backUrl()" (click)="goBack($event)">Annuler</a>
       <button class="btn btn-primary" type="submit" [disabled]="saving()">
         {{ saving() ? 'Enregistrement…' : isEdit() ? 'Enregistrer' : "Créer l'évènement" }}
       </button>

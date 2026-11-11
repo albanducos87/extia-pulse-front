@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { toLocalDateTime } from '../../core/data/mock-data';
-import { PulseEvent } from '../../core/models/event.model';
+import { EventFilter, PulseEvent } from '../../core/models/event.model';
 import { AuthService } from '../../core/services/auth.service';
 import { EventService } from '../../core/services/event.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -17,30 +17,28 @@ import { Icon } from '../../shared/components/icon';
 export class Dashboard {
   protected readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly eventService = inject(EventService);
 
   protected readonly loading = signal(true);
   private readonly events = signal<PulseEvent[]>([]);
+  private readonly myEvents = signal<PulseEvent[]>([]);
 
   private readonly now = toLocalDateTime(new Date());
-  private readonly upcoming = computed(() =>
+  private readonly testFilter: EventFilter = {
+    startFrom: this.now
+  }
+  private readonly upcoming = computed(() => 
     this.events().filter((e) => e.startAt >= this.now && e.status === 'PUBLISHED'),
   );
 
-  protected readonly nextEvents = computed(() => this.upcoming().slice(0, 4));
-  protected readonly myEvents = computed(() =>
-    this.events().filter(
-      (e) => e.creatorId === this.auth.currentUser()?.id && e.startAt >= this.now,
-    ),
-  );
+  protected readonly nextEvents = computed(() => {
+    return this.upcoming().slice(0, 5);
+  });
+
   protected readonly stats = computed(() => {
-    const weekAhead = toLocalDateTime(new Date(Date.now() + 7 * 864e5));
+    
     return [
       { label: 'Évènements à venir', value: this.upcoming().length, icon: 'calendar' as const },
-      {
-        label: 'Cette semaine',
-        value: this.upcoming().filter((e) => e.startAt <= weekAhead).length,
-        icon: 'clock' as const,
-      },
       { label: 'Mes évènements', value: this.myEvents().length, icon: 'user' as const },
       {
         label: 'Brouillons',
@@ -52,7 +50,7 @@ export class Dashboard {
 
   constructor() {
     inject(EventService)
-      .getEvents()
+      .getEvents(this.testFilter)
       .subscribe({
         next: (events) => {
           this.events.set(events);
@@ -62,6 +60,16 @@ export class Dashboard {
           this.toast.error(err);
           this.loading.set(false);
         },
+      });
+    inject(EventService)
+      .getEventsCreatedByCurrentUser()
+      .subscribe({
+        next: (currentUserEvents) => {
+          this.myEvents.set(currentUserEvents);
+        },
+        error: (err) => {
+          this.toast.error(err);
+        }
       });
   }
 }

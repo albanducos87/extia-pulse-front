@@ -61,7 +61,7 @@ export class Shell {
   });
 
   protected readonly poleName = computed(
-    () => MOCK_POLES.find((p) => p.id === this.auth.currentUser()?.poleId)?.name ?? '',
+    () => MOCK_POLES.find((p) => p.id === this.auth.currentUser()?.pole?.id)?.name ?? '',
   );
 
   protected logout(): void {

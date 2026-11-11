@@ -5,6 +5,7 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { EventTypeService } from '../../core/services/event-type.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Icon } from '../../shared/components/icon';
+import { HttpErrorResponse } from '@angular/common/http';
 
 const CODE_PATTERN = /^[A-Z0-9_]+$/;
 
@@ -54,7 +55,7 @@ export class EventTypes {
         this.createForm.reset();
         this.toast.success(`Type « ${created.label} » créé`);
       },
-      error: (err) => this.toast.error(err),
+      error: (err: HttpErrorResponse) => this.toast.error(err),
     });
   }
 
@@ -70,7 +71,7 @@ export class EventTypes {
       return;
     }
     const { code, label } = this.editForm.getRawValue();
-    this.service.update({ id, code, label: label.trim() }).subscribe({
+    this.service.update(id, code, label.trim()).subscribe({
       next: (updated) => {
         this.types.update((list) => list.map((t) => (t.id === id ? updated : t)));
         this.editingId.set(null);
@@ -98,7 +99,7 @@ export class EventTypes {
   }
 
   private load(): void {
-    this.service.getAll().subscribe({
+    this.service.getAllEventTypes().subscribe({
       next: (types) => {
         this.types.set(types);
         this.loading.set(false);

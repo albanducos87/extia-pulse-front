@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -8,7 +9,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import {
   EVENT_STATUS_LABELS,
@@ -47,7 +48,7 @@ const locationValidator: ValidatorFn = (group: AbstractControl): ValidationError
 
 @Component({
   selector: 'app-event-form',
-  imports: [ReactiveFormsModule, RouterLink, Icon],
+  imports: [ReactiveFormsModule, Icon],
   templateUrl: './event-form.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -56,15 +57,19 @@ export class EventForm {
   private readonly eventService = inject(EventService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
 
   protected readonly poles = toSignal(inject(PoleService).getPoles(), { initialValue: [] });
-  protected readonly eventTypes = toSignal(inject(EventTypeService).getAll(), { initialValue: [] });
+  protected readonly eventTypes = toSignal(inject(EventTypeService).getAllEventTypes(), { initialValue: [] });
   protected readonly statusOptions = (Object.entries(EVENT_STATUS_LABELS) as [EventStatus, string][]);
   protected readonly visibilityOptions = Object.entries(VISIBILITY_LABELS) as [Visibility, string][];
   protected readonly timeZones = TIME_ZONES;
 
   protected readonly eventId = signal<number | null>(null);
   protected readonly isEdit = computed(() => this.eventId() !== null);
+  protected readonly backUrl = computed(() =>
+    this.isEdit() ? `/events/${this.eventId()}` : '/events',
+  );
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly serverErrors = signal<string[]>([]);
@@ -74,16 +79,14 @@ export class EventForm {
       title: ['', [Validators.required, Validators.maxLength(255)]],
       description: [''],
       eventTypeId: [null as number | null, Validators.required],
-      poleId: [this.auth.currentUser()?.poleId ?? null, Validators.required],
+      poleId: [this.auth.currentUser()?.pole?.id ?? null, Validators.required],
       startDate: ['', Validators.required],
       endDate: [''],
-      timeZone: ['Europe/Paris'],
       locationName: [''],
       address: [''],
       onlineUrl: ['', Validators.pattern(/^https?:\/\/\S+$/)],
       capacity: [null as number | null, [Validators.required, Validators.min(1)]],
       rsvpDeadline: ['', Validators.required],
-      visibility: ['POLE' as Visibility, Validators.required],
       status: ['DRAFT' as EventStatus, Validators.required],
     },
     { validators: [eventDatesValidator, locationValidator] },
@@ -106,6 +109,16 @@ export class EventForm {
     return this.form.hasError(error) && fields.some((f) => this.form.controls[f].touched);
   }
 
+  protected goBack(domEvent: MouseEvent): void {
+    domEvent.preventDefault();
+    // Fall back to a sensible page when the form was opened directly (no in-app history).
+    if (this.router.lastSuccessfulNavigation()?.previousNavigation) {
+      this.location.back();
+    } else {
+      this.router.navigateByUrl(this.backUrl());
+    }
+  }
+
   protected submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -122,7 +135,7 @@ export class EventForm {
     save$.subscribe({
       next: (event) => {
         this.toast.success(id !== null ? 'Évènement mis à jour' : 'Évènement créé');
-        this.router.navigate(['/events', event.id]);
+        this.router.navigate(['/events', event.id], { replaceUrl: true });
       },
       error: (err) => {
         this.saving.set(false);
@@ -137,7 +150,7 @@ export class EventForm {
       next: (e) => {
         if (!this.auth.canEdit(e)) {
           this.toast.error("Vous n'avez pas les droits pour modifier cet évènement");
-          this.router.navigate(['/events', id]);
+          this.router.navigate(['/events', id], { replaceUrl: true });
           return;
         }
         this.form.setValue({
@@ -147,20 +160,18 @@ export class EventForm {
           poleId: e.poleId,
           startDate: toInputDate(e.startAt),
           endDate: toInputDate(e.endAt),
-          timeZone: e.timezone ?? 'Europe/Paris',
           locationName: e.locationName ?? '',
           address: e.address ?? '',
           onlineUrl: e.onlineUrl ?? '',
           capacity: e.capacity,
           rsvpDeadline: toInputDate(e.rsvpDeadline),
-          visibility: e.visibility,
           status: e.status,
         });
         this.loading.set(false);
       },
       error: (err) => {
         this.toast.error(err);
-        this.router.navigate(['/events']);
+        this.router.navigate(['/events'], { replaceUrl: true });
       },
     });
   }
@@ -174,13 +185,11 @@ export class EventForm {
       poleId: v.poleId!,
       startDate: fromInputDate(v.startDate)!,
       endDate: fromInputDate(v.endDate),
-      timeZone: v.timeZone || null,
       locationName: v.locationName?.trim() || null,
       address: v.address?.trim() || null,
       onlineUrl: v.onlineUrl?.trim() || null,
       capacity: v.capacity,
       rsvpDeadline: fromInputDate(v.rsvpDeadline)!,
-      visibility: v.visibility!,
       status: v.status!,
     };
   }
