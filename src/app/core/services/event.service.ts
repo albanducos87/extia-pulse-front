@@ -18,6 +18,7 @@ export class EventService {
   private readonly auth = inject(AuthService);
   private readonly http = inject(HttpClient);
   private readonly apiEventUrl = `${environment.apiUrl}/events`;
+  private readonly participateEventUrl = `${environment.apiUrl}/participation`;
 
   private participantCounts: Record<number, number> = { ...MOCK_PARTICIPANT_COUNTS };
   private registrations = new Set<number>();
@@ -88,44 +89,16 @@ export class EventService {
   }
 
   // --- Participation (no backend endpoint yet) ---
+  registerUserToEvent(eventId: number, userId: number): Observable<void> {
 
-  getParticipation(id: number): Observable<Participation> {
-    return mockResponse(() => this.participation(id));
+    return this.http.post<void>(`${this.participateEventUrl}/${eventId}/${userId}`, null);
   }
 
-  toggleRegistration(id: number): Observable<Participation> {
-
-    return mockResponse(() => {
-      const event = this.findOrThrow(id);
-      const registered = this.registrations.has(id);
-      if (!registered) {
-        const { count } = this.participation(id);
-        if (event.capacity != null && count >= event.capacity) {
-          throw new ApiError([`L'évènement est complet`]);
-        }
-        if (new Date(event.rsvpDeadline) < new Date()) {
-          throw new ApiError([`La date limite d'inscription est dépassée`]);
-        }
-        this.registrations.add(id);
-      } else {
-        this.registrations.delete(id);
-      }
-      return this.participation(id);
-    });
+  deregisterUserToEvent(eventId: number, userId: number): Observable<void> {
+    
+    return this.http.delete<void>(`${this.participateEventUrl}/${eventId}/${userId}`);
   }
-
-  private participation(id: number): Participation {
-    const registered = this.registrations.has(id);
-    return { count: (this.participantCounts[id] ?? 0) + (registered ? 1 : 0), registered };
-  }
-
-  private findOrThrow(id: number): PulseEvent {
-    const event = this.eventsMock.find((e) => e.id === id);
-    if (!event) {
-      throw new ApiError([`L'évènement avec id ${id} n'existe pas`]);
-    }
-    return event;
-  }
+  
 
   private toEvent(id: number, creatorId: number, r: EventRequest): PulseEvent {
     return enrichEvent({
@@ -143,7 +116,7 @@ export class EventService {
       capacity: r.capacity,
       rsvpDeadline: r.rsvpDeadline,
       status: r.status,
-      participants: null
+      participants: []
     });
   }
 

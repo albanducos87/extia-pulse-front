@@ -17,7 +17,6 @@ import { Icon } from '../../shared/components/icon';
 export class Dashboard {
   protected readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
-  private readonly eventService = inject(EventService);
 
   protected readonly loading = signal(true);
   private readonly events = signal<PulseEvent[]>([]);

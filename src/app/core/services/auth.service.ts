@@ -24,7 +24,7 @@ export class AuthService {
 
   readonly canManageEvents = computed(() => {
     const role = this.user()?.role;
-    return role === 'ADMIN' || role === 'MANAGER';
+    return role === 'ADMIN';
   });
 
   readonly isAdmin = computed(() => this.user()?.role === 'ADMIN');
@@ -32,6 +32,11 @@ export class AuthService {
   canEdit(event: PulseEvent): boolean {
     const user = this.user();
     return !!user && (user.role === 'ADMIN' || user.id === event.creatorId);
+  }
+
+  isUserRegistered(event: PulseEvent): boolean {
+    const user = this.user();
+    return !!user && !!event.participants?.some((p) => p.id === user.id);
   }
 
   loadCurrentUser(): Observable<AppUser> {

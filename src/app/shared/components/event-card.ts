@@ -1,7 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PulseEvent } from '../../core/models/event.model';
+import { AuthService } from '../../core/services/auth.service';
 import { StatusLabelPipe } from '../pipes/labels.pipe';
 import { Icon } from './icon';
 
@@ -20,6 +21,11 @@ import { Icon } from './icon';
         <div class="event-card-tags">
           <span class="chip">{{ e.eventTypeLabel }}</span>
           <span class="badge badge-{{ e.status.toLowerCase() }}">{{ e.status | statusLabel }}</span>
+          @if (isRegistered()) {
+            <span class="chip chip-registered"><app-icon name="check" [size]="12" />Inscrit·e</span>
+          } @else {
+            <span class="chip chip-outline">Non inscrit·e</span>
+          }
         </div>
         <h3 class="event-card-title">{{ e.title }}</h3>
         <ul class="meta">
@@ -35,5 +41,8 @@ import { Icon } from './icon';
   `,
 })
 export class EventCard {
+  private readonly auth = inject(AuthService);
+
   readonly event = input.required<PulseEvent>();
+  protected readonly isRegistered = computed(() => this.auth.isUserRegistered(this.event()));
 }

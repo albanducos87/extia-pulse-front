@@ -337,6 +337,11 @@ select.ng-invalid.ng-touched {
   font-size: 0.75rem;
   font-weight: 600;
 }
+.chip-registered {
+  gap: 4px;
+  background: var(--success-soft);
+  color: var(--success);
+}
 .chip-outline {
   background: transparent;
   border: 1px solid var(--border);

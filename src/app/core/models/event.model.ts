@@ -24,7 +24,7 @@ export interface PulseEvent {
   capacity: number | null;
   rsvpDeadline: string;
   status: EventStatus;
-  participants: AppUser[] | null;
+  participants: AppUser[];
 }
 
 /** Mirrors the query params of GET /api/events, plus client-side search. */

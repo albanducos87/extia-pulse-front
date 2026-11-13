@@ -42,12 +42,12 @@ export const MOCK_EVENT_TYPES: EventType[] = [
 
 export const MOCK_USERS: AppUser[] = [
   { id: 1, pole: montreal, email: 'alban.ducos@extia.fr', firstName: 'Alban', lastName: 'Ducos', role: 'ADMIN', active: true },
-  { id: 2, pole: montreal, email: 'claire.martin@extia.fr', firstName: 'Claire', lastName: 'Martin', role: 'MANAGER', active: true },
-  { id: 3, pole: montreal, email: 'hugo.bernard@extia.fr', firstName: 'Hugo', lastName: 'Bernard', role: 'EMPLOYEE', active: true },
-  { id: 4, pole: montreal, email: 'lea.tremblay@extia.fr', firstName: 'Léa', lastName: 'Tremblay', role: 'MANAGER', active: true },
-  { id: 5, pole: montreal, email: 'nina.petit@extia.fr', firstName: 'Nina', lastName: 'Petit', role: 'EMPLOYEE', active: false },
-  { id: 6, pole: montreal, email: 'samir.haddad@extia.fr', firstName: 'Samir', lastName: 'Haddad', role: 'EMPLOYEE', active: true },
-  { id: 7, pole: montreal, email: 'marc.gagnon@extia.fr', firstName: 'Marc', lastName: 'Gagnon', role: 'EMPLOYEE', active: true },
+  { id: 2, pole: montreal, email: 'claire.martin@extia.fr', firstName: 'Claire', lastName: 'Martin', role: 'ADMIN', active: true },
+  { id: 3, pole: montreal, email: 'hugo.bernard@extia.fr', firstName: 'Hugo', lastName: 'Bernard', role: 'USER', active: true },
+  { id: 4, pole: montreal, email: 'lea.tremblay@extia.fr', firstName: 'Léa', lastName: 'Tremblay', role: 'ADMIN', active: true },
+  { id: 5, pole: montreal, email: 'nina.petit@extia.fr', firstName: 'Nina', lastName: 'Petit', role: 'USER', active: false },
+  { id: 6, pole: montreal, email: 'samir.haddad@extia.fr', firstName: 'Samir', lastName: 'Haddad', role: 'USER', active: true },
+  { id: 7, pole: montreal, email: 'marc.gagnon@extia.fr', firstName: 'Marc', lastName: 'Gagnon', role: 'USER', active: true },
 ];
 
 type SeedEvent = Omit<

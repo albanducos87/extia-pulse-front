@@ -2,7 +2,7 @@ import { DatePipe, Location } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin, switchMap, tap } from 'rxjs';
+import { finalize, forkJoin, map, switchMap, tap } from 'rxjs';
 import { EventStatus, PulseEvent } from '../../../core/models/event.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
@@ -27,6 +27,7 @@ export class EventDetail {
 
   protected readonly event = signal<PulseEvent | null>(null);
   protected readonly participation = signal<Participation>({ count: 0, registered: false });
+  protected readonly isRegistered = signal<boolean>;
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
 
@@ -47,8 +48,9 @@ export class EventDetail {
     return capacity != null && this.participation().count >= capacity;
   });
   protected readonly fillRate = computed(() => {
+    const participants = this.event()?.participants;
     const capacity = this.event()?.capacity;
-    return capacity ? Math.min(100, (this.participation().count / capacity) * 100) : 0;
+    return capacity && participants ? Math.min(100, (participants.length / capacity) * 100) : 0;
   });
 
   constructor() {
@@ -57,17 +59,13 @@ export class EventDetail {
         tap(() => this.loading.set(true)),
         switchMap((params) => {
           const id = Number(params.get('id'));
-          return forkJoin([
-            this.eventService.getEvent(id),
-            this.eventService.getParticipation(id),
-          ]);
+          return this.eventService.getEvent(id)
         }),
         takeUntilDestroyed(),
       )
       .subscribe({
-        next: ([event, participation]) => {
+        next: (event) => {
           this.event.set(event);
-          this.participation.set(participation);
           this.loading.set(false);
         },
         error: (err) => {
@@ -75,6 +73,47 @@ export class EventDetail {
           this.router.navigate(['/events'], { replaceUrl: true });
         },
       });
+  }
+
+  protected isUserRegistered(): boolean {
+    const event = this.event();
+    return !!event && this.auth.isUserRegistered(event);
+  }
+
+  protected registerUser(): void {
+    this.busy.set(true);
+    const event = this.event()!;
+    const user = this.auth.currentUser()!;
+
+    this.eventService.registerUserToEvent(event.id, user.id).pipe(
+      switchMap(() => this.eventService.getEvent(event.id)),
+      finalize(() => this.busy.set(false))
+    ).subscribe({
+      next: updated => {
+        this.event.set(updated);
+        this.toast.success('Inscription confirmée')
+      },
+      error: () => this.toast.error(`Impossible de s'inscrire`)
+    });
+    
+  }
+
+  protected deregisterUser(): void {
+    
+    const event = this.event()!;
+    const user = this.auth.currentUser()!;
+
+    this.eventService.deregisterUserToEvent(event.id, user.id).pipe(
+      switchMap(() => this.eventService.getEvent(event.id)),
+      finalize(() => this.busy.set(false))
+    ).subscribe({
+      next: updated => {
+        this.event.set(updated);
+        this.toast.success('Désinscription confirmée')
+      },
+      error: () => this.toast.error(`Impossible de se désinscrire`)
+    });
+    
   }
 
   protected goBack(domEvent: MouseEvent): void {
@@ -90,24 +129,6 @@ export class EventDetail {
   protected addParticipant(): void {
     const event = this.event()!;
     
-  }
-
-  protected toggleRegistration(): void {
-    const event = this.event()!;
-    this.busy.set(true);
-    this.eventService.toggleRegistration(event.id).subscribe({
-      next: (participation) => {
-        this.participation.set(participation);
-        this.busy.set(false);
-        this.toast.success(
-          participation.registered ? 'Inscription confirmée 🎉' : 'Inscription annulée',
-        );
-      },
-      error: (err) => {
-        this.busy.set(false);
-        this.toast.error(err);
-      },
-    });
   }
 
   protected async changeStatus(status: EventStatus): Promise<void> {

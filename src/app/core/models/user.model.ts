@@ -1,6 +1,6 @@
 import { Pole } from "./pole.model";
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+export type UserRole = 'ADMIN' | 'USER';
 
 /** Mirrors the backend AppUserDto (+ active flag from the entity). */
 export interface AppUser {
@@ -38,6 +38,5 @@ export enum role {
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrateur',
-  MANAGER: 'Manager',
-  EMPLOYEE: 'Collaborateur',
+  USER: 'Utilisateur'
 };
