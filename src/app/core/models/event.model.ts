@@ -1,4 +1,4 @@
-import { AppUser } from "./user.model";
+import { AppUser } from './user.model';
 
 export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED';
 export type Visibility = 'PRIVATE' | 'POLE' | 'COMPANY';
@@ -25,6 +25,8 @@ export interface PulseEvent {
   rsvpDeadline: string;
   status: EventStatus;
   participants: AppUser[];
+  /** Users invited to the event (only returned to its organiser / admins). */
+  invitedUsers?: AppUser[];
 }
 
 /** Mirrors the query params of GET /api/events, plus client-side search. */
@@ -41,7 +43,6 @@ export interface EventFilter {
 
 /** Mirrors CreateEventRequestDto / UpdateEventRequestDto. */
 export interface EventRequest {
-  id?: number | null;
   title: string;
   startDate: string;
   endDate: string | null;
@@ -54,6 +55,9 @@ export interface EventRequest {
   capacity: number | null;
   rsvpDeadline: string;
   status: EventStatus;
+  /** Users to invite; the backend creates one PENDING invitation per new id. */
+  invitedUserIds: number[];
+  creatorRegistered: boolean;
 }
 
 export const EVENT_STATUS_LABELS: Record<EventStatus, string> = {

@@ -1,5 +1,5 @@
 export interface Pole {
   id: number;
-  company: number,
+  company: number;
   name: string;
 }

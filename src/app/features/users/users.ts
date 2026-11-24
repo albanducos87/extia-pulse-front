@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, startWith, switchMap, tap } from 'rxjs';
-import { AppUser, role, UserRole } from '../../core/models/user.model';
+import { AppUser, USER_ROLES, UserRole } from '../../core/models/user.model';
 import { PoleService } from '../../core/services/pole.service';
 import { ToastService } from '../../core/services/toast.service';
 import { UserService } from '../../core/services/user.service';
@@ -21,10 +21,7 @@ export class Users {
   private readonly fb = inject(FormBuilder);
 
   protected readonly poles = toSignal(inject(PoleService).getPoles(), { initialValue: [] });
-  protected readonly roles = Object.values(role);
-  private readonly poleNames = computed(
-    () => new Map(this.poles().map((p) => [p.id, p.name] as const)),
-  );
+  protected readonly roles = USER_ROLES;
 
   protected readonly filters = this.fb.group({
     search: [''],
@@ -43,7 +40,7 @@ export class Users {
     lastName: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
     poleId: [0, Validators.required],
-    role: ['EMPLOYEE' as UserRole, Validators.required],
+    role: ['USER' as UserRole, Validators.required],
     active: [true],
   });
 
@@ -60,10 +57,6 @@ export class Users {
         this.users.set(users);
         this.loading.set(false);
       });
-  }
-
-  protected poleName(id: number): string {
-    return this.poleNames().get(id) ?? '—';
   }
 
   protected openEdit(user: AppUser): void {

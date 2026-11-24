@@ -24,7 +24,11 @@
       </label>
       <label class="field">
         <span>Description</span>
-        <textarea formControlName="description" rows="5" placeholder="Programme, informations pratiques…"></textarea>
+        <textarea
+          formControlName="description"
+          rows="5"
+          placeholder="Programme, informations pratiques…"
+        ></textarea>
       </label>
       <div class="field-row">
         <label class="field">
@@ -68,7 +72,9 @@
           <span>Fin</span>
           <input type="datetime-local" formControlName="endDate" />
           @if (showGroupError('endBeforeStart', 'endDate', 'startDate')) {
-            <small class="field-error">La date de fin doit être postérieure à la date de début</small>
+            <small class="field-error"
+              >La date de fin doit être postérieure à la date de début</small
+            >
           }
         </label>
       </div>
@@ -79,7 +85,9 @@
           @if (showError('rsvpDeadline')) {
             <small class="field-error">La date limite d'inscription est obligatoire</small>
           } @else if (showGroupError('rsvpAfterStart', 'rsvpDeadline', 'startDate')) {
-            <small class="field-error">La date limite d'inscription doit précéder le début de l'évènement</small>
+            <small class="field-error"
+              >La date limite d'inscription doit précéder le début de l'évènement</small
+            >
           }
         </label>
       </div>
@@ -110,7 +118,7 @@
     </section>
 
     <section class="card form-section">
-      <h2>Participation et diffusion</h2>
+      <h2>Participation</h2>
       <div class="field-row">
         <label class="field">
           <span>Capacité *</span>
@@ -119,7 +127,126 @@
             <small class="field-error">La capacité doit être un nombre positif</small>
           }
         </label>
+        <div class="field field-checkbox">
+          <label class="checkbox" [class.is-disabled]="form.controls.registered.disabled">
+            <input type="checkbox" formControlName="registered" />
+            S'inscrire à l'évènement
+          </label>
+          @if (form.controls.registered.disabled) {
+            <small class="muted small">Renseignez d'abord la capacité</small>
+          }
+        </div>
       </div>
+    </section>
+
+    <section class="card form-section">
+      <div class="section-header">
+        <h2>Invitations</h2>
+        @if (invitedUsers().length || capacity()) {
+          <span class="small" [class.muted]="!overCapacity()" [class.field-error]="overCapacity()">
+            {{ invitedUsers().length }}
+            @if (registered()) {
+              + vous
+            }
+            @if (capacity()) {
+              / {{ capacity() }}
+            }
+            invité·e{{ invitedUsers().length > 1 ? 's' : '' }}
+          </span>
+        }
+      </div>
+      <p class="muted small">
+        Les collaborateurs invités retrouveront l'évènement dans leur onglet « Invitations ».
+      </p>
+
+      <div class="invite-picker">
+        <label class="field field-search">
+          <span class="sr-only">Rechercher un collaborateur à inviter</span>
+          <app-icon name="search" [size]="16" />
+          <input
+            type="search"
+            autocomplete="off"
+            [disabled]="invitesFull()"
+            [placeholder]="invitesFull() ? 'Capacité atteinte' : 'Nom, prénom, e-mail ou pôle…'"
+            [value]="inviteSearch()"
+            (input)="inviteSearch.set($any($event.target).value)"
+            (keydown.enter)="onInviteEnter($event)"
+            (keydown.escape)="inviteSearch.set('')"
+          />
+        </label>
+
+        @if (inviteSearch().trim() && !invitesFull()) {
+          <ul class="invite-suggestions" role="listbox" aria-label="Suggestions">
+            @for (u of inviteCandidates(); track u.id) {
+              <li>
+                <button type="button" role="option" aria-selected="false" (click)="invite(u)">
+                  <span class="avatar avatar-sm">{{ u.firstName[0] }}{{ u.lastName[0] }}</span>
+                  <span class="invite-user">
+                    <strong>{{ u.firstName }} {{ u.lastName }}</strong>
+                    <span class="muted small">{{ u.email }} · {{ u.pole?.name }}</span>
+                  </span>
+                  <app-icon name="plus" [size]="16" />
+                </button>
+              </li>
+            } @empty {
+              <li class="muted small invite-empty">Aucun collaborateur trouvé.</li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="invite-actions">
+        @if (selectedPoleName() && uninvitedPoleMembers().length) {
+          <button
+            class="btn btn-ghost btn-sm"
+            type="button"
+            [disabled]="!canInviteWholePole()"
+            [title]="canInviteWholePole() ? '' : 'Pas assez de places pour inviter tout le pôle'"
+            (click)="inviteWholePole()"
+          >
+            <app-icon name="users" [size]="16" />Inviter tout le pôle {{ selectedPoleName() }} ({{
+              uninvitedPoleMembers().length
+            }})
+          </button>
+        }
+        @if (invitedUsers().length) {
+          <button class="btn btn-ghost btn-sm" type="button" (click)="clearInvitations()">
+            <app-icon name="x" [size]="16" />Tout retirer
+          </button>
+        }
+      </div>
+
+      @if (overCapacity()) {
+        <small class="field-error">
+          Vous avez invité plus de personnes que la capacité de l'évènement ({{ capacity() }} places
+          @if (registered()) {
+            , dont une pour vous
+          }
+          ). Retirez {{ -remainingInvites()! }} invité·e{{ -remainingInvites()! > 1 ? 's' : '' }} ou
+          augmentez la capacité.
+        </small>
+      } @else if (invitesFull() && invitedUsers().length) {
+        <small class="muted small"
+          >Capacité atteinte : augmentez-la pour inviter d'autres personnes.</small
+        >
+      }
+
+      @if (invitedUsers().length) {
+        <ul class="invite-chips" aria-label="Collaborateurs invités">
+          @for (u of invitedUsers(); track u.id) {
+            <li class="chip chip-invite">
+              {{ u.firstName }} {{ u.lastName }}
+              <button
+                type="button"
+                [attr.aria-label]="'Retirer ' + u.firstName + ' ' + u.lastName"
+                (click)="uninvite(u)"
+              >
+                <app-icon name="x" [size]="12" />
+              </button>
+            </li>
+          }
+        </ul>
+      }
     </section>
 
     @if (serverErrors().length) {

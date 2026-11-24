@@ -1,37 +1,65 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { AppUser } from '../models/user.model';
-import { PulseEvent } from '../models/event.model';
-import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment.dev';
-import { Observable, shareReplay, tap } from 'rxjs';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { Observable, shareReplay, tap } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { PulseEvent } from '../models/event.model';
+import { AppUser } from '../models/user.model';
 
 /**
- * Mock authentication. To be replaced by the Cognito integration:
- * login/logout will delegate to Cognito and the current user will be
- * resolved from the JWT subject.
+ * Authentication through AWS Cognito (OIDC). The application user (role, pole…)
+ * is then fetched from the backend and exposed as the `currentUser` signal.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly oidc = inject(OidcSecurityService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
-  private userRequest$?: Observable<AppUser>;
 
   private readonly user = signal<AppUser | null>(null);
   readonly currentUser = this.user.asReadonly();
-
-  readonly canManageEvents = computed(() => {
-    const role = this.user()?.role;
-    return role === 'ADMIN';
-  });
+  /** Shared request so concurrent callers trigger a single HTTP call. */
+  private currentUser$?: Observable<AppUser>;
 
   readonly isAdmin = computed(() => this.user()?.role === 'ADMIN');
+  /** Only admins can create events for now. */
+  readonly canManageEvents = this.isAdmin;
 
-  canEdit(event: PulseEvent): boolean {
+  /** Called once at startup: completes the OIDC flow and loads the application user. */
+  init(): void {
+    this.oidc.checkAuth().subscribe(({ isAuthenticated }) => {
+      if (!isAuthenticated) return;
+      this.loadCurrentUser().subscribe();
+      if (this.router.url.startsWith('/callback')) {
+        this.router.navigateByUrl('/');
+      }
+    });
+  }
+
+  loadCurrentUser(): Observable<AppUser> {
+    this.currentUser$ ??= this.http.get<AppUser>(`${environment.apiUrl}/user/currentUser`).pipe(
+      tap((user) => this.user.set(user)),
+      shareReplay(1),
+    );
+    return this.currentUser$;
+  }
+
+  setCurrentUser(user: AppUser): void {
+    this.user.set(user);
+  }
+
+  logout(): void {
+    this.oidc.logoffLocal();
+    const { domain, clientId } = environment.cognito;
+    const logoutUri = encodeURIComponent(window.location.origin);
+    window.location.href = `${domain}/logout?client_id=${clientId}&logout_uri=${logoutUri}`;
+  }
+
+  /** The current user created this event. */
+  isOrganiser(event: PulseEvent): boolean {
     const user = this.user();
-    return !!user && (user.role === 'ADMIN' || user.id === event.creatorId);
+    return !!user && user.id === event.creatorId;
   }
 
   isUserRegistered(event: PulseEvent): boolean {
@@ -39,33 +67,7 @@ export class AuthService {
     return !!user && !!event.participants?.some((p) => p.id === user.id);
   }
 
-  loadCurrentUser(): Observable<AppUser> {
-    this.userRequest$ ??= this.http.get<AppUser>(`${environment.apiUrl}/user/currentUser`).pipe(
-      tap((user) => this.user.set(user)),
-      shareReplay(1)
-    );
-    return this.userRequest$;
-  }
-
-  init(): void {
-    this.oidc.checkAuth().subscribe(({ isAuthenticated }) => {
-      if (isAuthenticated) {
-        this.loadCurrentUser().subscribe();
-        if (this.router.url.startsWith('/callback')) {
-          this.router.navigateByUrl('/');
-        }
-      }
-    });
-  }
-
-  logout(): void {
-    this.oidc.logoffLocal();
-    const { domain, clientId } = environment.cognito;
-    window.location.href = 
-      `${domain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(window.location.origin)}`;
-  }
-
-  setCurrentUser(user: AppUser): void {
-    this.user.set(user);
+  canEdit(event: PulseEvent): boolean {
+    return this.isAdmin() || this.isOrganiser(event);
   }
 }

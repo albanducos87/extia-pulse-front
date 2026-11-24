@@ -1,4 +1,4 @@
-import { Pole } from "./pole.model";
+import { Pole } from './pole.model';
 
 export type UserRole = 'ADMIN' | 'USER';
 
@@ -6,16 +6,6 @@ export type UserRole = 'ADMIN' | 'USER';
 export interface AppUser {
   id: number;
   pole: Pole;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  active: boolean;
-}
-
-export interface AppUserUpdateRequest {
-  id: number;
-  poleId: number;
   email: string;
   firstName: string;
   lastName: string;
@@ -31,12 +21,9 @@ export interface UserFilter {
   search?: string | null;
 }
 
-export enum role {
-  User = 'USER',
-  Admin = 'ADMIN'
-}
+export const USER_ROLES: readonly UserRole[] = ['ADMIN', 'USER'];
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrateur',
-  USER: 'Utilisateur'
+  USER: 'Utilisateur',
 };

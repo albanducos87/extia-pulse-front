@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor, LogLevel, provideAuth } from 'angular-auth-oidc-client';
-import { environment } from '../environments/environment.dev';
+import { environment } from '../environments/environment';
 
 registerLocaleData(localeFr);
 
@@ -28,7 +28,7 @@ export const appConfig: ApplicationConfig = {
         secureRoutes: [environment.apiUrl],
         logLevel: LogLevel.Debug,
         disableRefreshTokenOfflineAccessScopeWarning: true,
-      }
-    })
+      },
+    }),
   ],
 };

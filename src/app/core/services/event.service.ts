@@ -1,139 +1,94 @@
-import { Injectable, inject } from '@angular/core';
-import { map, Observable, switchMap } from 'rxjs';
-import { MOCK_PARTICIPANT_COUNTS, enrichEvent } from '../data/mock-data';
-import { EventFilter, EventRequest, PulseEvent } from '../models/event.model';
-import { AuthService } from './auth.service';
-import { ApiError, mockResponse } from './mock-http';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '../../../environments/environment.dev';
+import { Injectable, inject } from '@angular/core';
+import { Observable, map, switchMap } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { EventFilter, EventRequest, EventStatus, PulseEvent } from '../models/event.model';
+import { byStartDate } from '../utils/event.utils';
+import { AuthService } from './auth.service';
+import { fileNameFromDisposition } from '../utils/download.utils';
 
-export interface Participation {
-  count: number;
-  registered: boolean;
-}
-
-/** In-memory stand-in for /api/events. */
 @Injectable({ providedIn: 'root' })
 export class EventService {
-  private readonly auth = inject(AuthService);
   private readonly http = inject(HttpClient);
-  private readonly apiEventUrl = `${environment.apiUrl}/events`;
-  private readonly participateEventUrl = `${environment.apiUrl}/participation`;
+  private readonly auth = inject(AuthService);
+  private readonly eventsUrl = `${environment.apiUrl}/events`;
+  private readonly participationUrl = `${environment.apiUrl}/participation`;
 
-  private participantCounts: Record<number, number> = { ...MOCK_PARTICIPANT_COUNTS };
-  private registrations = new Set<number>();
-
+  /** All events visible to the user, filtered client-side and sorted by start date. */
   getEvents(filter: EventFilter = {}): Observable<PulseEvent[]> {
-
-    return this.http.get<PulseEvent[]>(this.apiEventUrl).pipe(
-      map((events: PulseEvent[]) => {
-
-        const search = filter.search?.trim().toLocaleLowerCase();
-
-        return events.filter(
-            (e) => 
-              (filter.poleId == null || e.poleId === filter.poleId) &&
-              (filter.creatorId == null || e.creatorId === filter.creatorId) &&
-              (filter.eventTypeId == null || e.eventTypeId === filter.eventTypeId) &&
-              (filter.status == null || e.status === filter.status) &&
-              (!filter.startFrom || e.startAt >= filter.startFrom) &&
-              (!filter.startTo || e.startAt <= filter.startTo) &&
-              (!search ||
-                `${e.title} ${e.description ?? ''} ${e.locationName ?? ''}`
-                  .toLowerCase()
-                  .includes(search))
-          ).sort((a, b) => a.startAt.localeCompare(b.startAt))
-      })
-    )
+    return this.http
+      .get<PulseEvent[]>(this.eventsUrl)
+      .pipe(map((events) => events.filter((e) => matchesFilter(e, filter)).sort(byStartDate)));
   }
 
   getEventsCreatedByCurrentUser(): Observable<PulseEvent[]> {
-    return this.auth.loadCurrentUser().pipe(
-      switchMap((user) =>
-        this.http.get<PulseEvent[]>(`${this.apiEventUrl}/getEventsByCreatorId/${user.id}`)
-      )
-    );
+    return this.auth
+      .loadCurrentUser()
+      .pipe(
+        switchMap((user) =>
+          this.http.get<PulseEvent[]>(`${this.eventsUrl}/getEventsByCreatorId/${user.id}`),
+        ),
+      );
   }
 
   getEvent(id: number): Observable<PulseEvent> {
-    return this.http.get<PulseEvent>(`${this.apiEventUrl}/${id}`);
+    return this.http.get<PulseEvent>(`${this.eventsUrl}/${id}`);
   }
 
   create(request: EventRequest): Observable<PulseEvent> {
-    console.log("request", request)
-
-    this.validate(request);
-
-    return this.http.post<PulseEvent>(`${this.apiEventUrl}/create`, request);
-
+    return this.http.post<PulseEvent>(`${this.eventsUrl}/create`, request);
   }
 
   update(id: number, request: EventRequest): Observable<PulseEvent> {
-    console.log("request", request)
-    request.id = id;
-    this.validate(request);
-    return this.http.put<PulseEvent>(`${this.apiEventUrl}/update/${id}`, request);
+    return this.http.put<PulseEvent>(`${this.eventsUrl}/update/${id}`, { ...request, id });
   }
 
-  updateStatus(id: number, status: PulseEvent['status']): Observable<PulseEvent> {
-    const params = new HttpParams()
-      .set('id', id)
-      .set('status', status);
-
-    return this.http.put<PulseEvent>(`${this.apiEventUrl}/updateStatus/${id}/${status}`, null, {params});
-    
-  }
-
-  delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiEventUrl}/delete/${id}`);
-  }
-
-  // --- Participation (no backend endpoint yet) ---
-  registerUserToEvent(eventId: number, userId: number): Observable<void> {
-
-    return this.http.post<void>(`${this.participateEventUrl}/${eventId}/${userId}`, null);
-  }
-
-  deregisterUserToEvent(eventId: number, userId: number): Observable<void> {
-    
-    return this.http.delete<void>(`${this.participateEventUrl}/${eventId}/${userId}`);
-  }
-  
-
-  private toEvent(id: number, creatorId: number, r: EventRequest): PulseEvent {
-    return enrichEvent({
-      id,
-      creatorId,
-      title: r.title,
-      description: r.description,
-      eventTypeId: r.eventTypeId,
-      poleId: r.poleId,
-      startAt: r.startDate,
-      endAt: r.endDate,
-      locationName: r.locationName,
-      address: r.address,
-      onlineUrl: r.onlineUrl,
-      capacity: r.capacity,
-      rsvpDeadline: r.rsvpDeadline,
-      status: r.status,
-      participants: []
+  updateStatus(id: number, status: EventStatus): Observable<PulseEvent> {
+    const params = new HttpParams().set('id', id).set('status', status);
+    return this.http.put<PulseEvent>(`${this.eventsUrl}/updateStatus/${id}/${status}`, null, {
+      params,
     });
   }
 
-  /** Same rules as the backend EventValidator. */
-  private validate(r: EventRequest): void {
-    const errors: string[] = [];
-    if (r.endDate && r.endDate <= r.startDate) {
-      errors.push('La date de fin doit être postérieure à la date de début');
-    }
-    if (r.rsvpDeadline > r.startDate) {
-      errors.push("La date limite d'inscription doit précéder le début de l'évènement");
-    }
-    if (r.capacity == null || r.capacity <= 0) {
-      errors.push('La capacité doit être positive');
-    }
-    if (errors.length) {
-      throw new ApiError(errors);
-    }
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.eventsUrl}/delete/${id}`);
+  }
+
+  register(eventId: number, userId: number): Observable<void> {
+    return this.http.post<void>(`${this.participationUrl}/${eventId}/${userId}`, null);
+  }
+
+  unregister(eventId: number, userId: number): Observable<void> {
+    return this.http.delete<void>(`${this.participationUrl}/${eventId}/${userId}`);
+  }
+
+  downloadIcs(eventId: number): Observable<{ blob: Blob, fileName: string}> {
+    return this.http
+      .get(`${this.eventsUrl}/${eventId}/ics`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map((res) => ({
+          blob: res.body!,
+          fileName: fileNameFromDisposition(
+            res.headers.get('Content-Disposition'),
+            `evenement-${eventId}.ics`
+          )
+        }))
+      )
   }
 }
+
+function matchesFilter(event: PulseEvent, filter: EventFilter): boolean {
+  const search = filter.search?.trim().toLowerCase();
+  const searchable = `${event.title} ${event.description ?? ''} ${event.locationName ?? ''}`;
+  return (
+    (filter.poleId == null || event.poleId === filter.poleId) &&
+    (filter.creatorId == null || event.creatorId === filter.creatorId) &&
+    (filter.eventTypeId == null || event.eventTypeId === filter.eventTypeId) &&
+    (filter.status == null || event.status === filter.status) &&
+    (!filter.startFrom || event.startAt >= filter.startFrom) &&
+    (!filter.startTo || event.startAt <= filter.startTo) &&
+    (!search || searchable.toLowerCase().includes(search))
+  );
+}
+
+

@@ -15,13 +15,23 @@
           (click)="menuOpen.set(false)"
         >
           <app-icon [name]="item.icon" />{{ item.label }}
+          @if (item.badge) {
+            <span class="count-pill nav-badge" [attr.aria-label]="item.badge + ' en attente'">{{
+              item.badge
+            }}</span>
+          }
         </a>
       }
 
       @if (auth.isAdmin()) {
         <p class="nav-section">Administration</p>
         @for (item of adminItems; track item.path) {
-          <a class="nav-link" [routerLink]="item.path" routerLinkActive="active" (click)="menuOpen.set(false)">
+          <a
+            class="nav-link"
+            [routerLink]="item.path"
+            routerLinkActive="active"
+            (click)="menuOpen.set(false)"
+          >
             <app-icon [name]="item.icon" />{{ item.label }}
           </a>
         }
@@ -32,10 +42,18 @@
       <div class="user-box">
         <span class="avatar">{{ initials() }}</span>
         <div class="user-box-info">
-          <a routerLink="/profile" (click)="menuOpen.set(false)"><strong>{{ user.firstName }} {{ user.lastName }}</strong></a>
+          <a routerLink="/profile" (click)="menuOpen.set(false)"
+            ><strong>{{ user.firstName }} {{ user.lastName }}</strong></a
+          >
           <small>{{ user.role | roleLabel }} · {{ poleName() }}</small>
         </div>
-        <button class="icon-btn" type="button" title="Se déconnecter" aria-label="Se déconnecter" (click)="logout()">
+        <button
+          class="icon-btn"
+          type="button"
+          title="Se déconnecter"
+          aria-label="Se déconnecter"
+          (click)="logout()"
+        >
           <app-icon name="logout" />
         </button>
       </div>

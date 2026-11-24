@@ -1,4 +1,6 @@
-<a class="back-link" href="/events" (click)="goBack($event)"><app-icon name="arrow-left" [size]="16" />Retour</a>
+<a class="back-link" href="/events" (click)="goBack($event)"
+  ><app-icon name="arrow-left" [size]="16" />Retour</a
+>
 
 @if (loading()) {
   <div class="loader" aria-label="Chargement"></div>
@@ -6,7 +8,9 @@
   @if (e.status === 'CANCELLED') {
     <div class="alert alert-error">Cet évènement a été annulé.</div>
   } @else if (e.status === 'DRAFT') {
-    <div class="alert alert-info">Brouillon : cet évènement n'est visible que par son organisateur.</div>
+    <div class="alert alert-info">
+      Brouillon : cet évènement n'est visible que par son organisateur.
+    </div>
   }
 
   <header class="page-header">
@@ -14,7 +18,7 @@
       <div class="event-card-tags">
         <span class="chip">{{ e.eventTypeLabel }}</span>
         <span class="badge badge-{{ e.status.toLowerCase() }}">{{ e.status | statusLabel }}</span>
-        @if (isUserRegistered()) {
+        @if (isRegistered()) {
           <span class="chip chip-registered"><app-icon name="check" [size]="12" />Inscrit·e</span>
         } @else {
           <span class="chip chip-outline">Non inscrit·e</span>
@@ -28,13 +32,27 @@
     @if (canEdit()) {
       <div class="actions">
         @if (e.status === 'DRAFT') {
-          <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="changeStatus('PUBLISHED')">
+          <button
+            class="btn btn-primary"
+            type="button"
+            [disabled]="busy()"
+            (click)="changeStatus('PUBLISHED')"
+          >
             <app-icon name="check" />Publier
           </button>
         }
-        <a class="btn btn-ghost" [routerLink]="['/events', e.id, 'edit']"><app-icon name="edit" />Modifier</a>
+        @if (!isPast()) {
+          <a class="btn btn-ghost" [routerLink]="['/events', e.id, 'edit']"
+            ><app-icon name="edit" />Modifier</a
+          >
+        }
         @if (e.status === 'PUBLISHED' && !isPast()) {
-          <button class="btn btn-ghost" type="button" [disabled]="busy()" (click)="changeStatus('CANCELLED')">
+          <button
+            class="btn btn-ghost"
+            type="button"
+            [disabled]="busy()"
+            (click)="changeStatus('CANCELLED')"
+          >
             <app-icon name="x" />Annuler
           </button>
         }
@@ -61,7 +79,14 @@
               <span class="muted">
                 {{ e.startAt | date: 'HH:mm' }}
                 @if (e.endAt) {
-                  – {{ e.endAt | date: (e.endAt.slice(0, 10) === e.startAt.slice(0, 10) ? 'HH:mm' : 'd MMM, HH:mm') }}
+                  –
+                  {{
+                    e.endAt
+                      | date
+                        : (e.endAt.slice(0, 10) === e.startAt.slice(0, 10)
+                            ? 'HH:mm'
+                            : 'd MMM, HH:mm')
+                  }}
                 }
               </span>
             </div>
@@ -80,10 +105,19 @@
               <app-icon name="video" />
               <div>
                 <strong>En ligne</strong>
-                <a class="link" [href]="e.onlineUrl" target="_blank" rel="noopener">Rejoindre la réunion</a>
+                <a class="link" [href]="e.onlineUrl" target="_blank" rel="noopener"
+                  >Rejoindre la réunion</a
+                >
               </div>
             </li>
           }
+          <li>
+            <app-icon name="user" />
+            <div>
+              <strong>Créé par</strong>
+              <span class="muted">{{ e.creatorFirstName }} {{ e.creatorLastName }}</span>
+            </div>
+          </li>
           <li>
             <app-icon name="clock" />
             <div>
@@ -97,28 +131,62 @@
       <section class="card">
         <div class="section-header">
           <h2>Participants</h2>
-          <strong>{{ e.participants?.length }}@if (e.capacity) { / {{ e.capacity }}}</strong>
+          <strong
+            >{{ e.participants.length }}
+            @if (e.capacity) {
+              / {{ e.capacity }}
+            }
+          </strong>
         </div>
         @if (e.capacity) {
-          <div class="progress" role="progressbar" [attr.aria-valuenow]="fillRate()" aria-valuemin="0" aria-valuemax="100">
+          <div
+            class="progress"
+            role="progressbar"
+            [attr.aria-valuenow]="fillRate()"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
             <div class="progress-bar" [style.width.%]="fillRate()"></div>
           </div>
         }
 
+        @if (e.participants.length) {
+          <button
+            class="btn btn-ghost btn-block"
+            type="button"
+            (click)="showParticipants.set(true)"
+          >
+            <app-icon name="users" />Voir la liste
+          </button>
+        }
+
         @if (e.status === 'PUBLISHED' && !isPast()) {
-          @if (isUserRegistered()) {
+          @if (isRegistered()) {
             <p class="success-text"><app-icon name="check" [size]="16" />Vous êtes inscrit·e</p>
-            <!--<button class="btn btn-ghost btn-block" type="button" [disabled]="busy()" (click)="toggleRegistration()">-->
-            <button class="btn btn-ghost btn-block" type="button" [disabled]="busy()" (click)="deregisterUser()">
-              Se désinscrire
-            </button>
+            <div class="btn-stack">
+              <button
+                class="btn btn-ghost btn-block"
+                type="button"
+                [disabled]="busy()"
+                (click)="unregister()"
+              >
+                Se désinscrire
+              </button>
+              <button class="btn btn-ghost btn-block" type="button" (click)="exportToCalendar()">
+                <app-icon name="calendar" />Ajouter à mon agenda
+              </button>
+            </div>
           } @else if (rsvpClosed()) {
             <p class="muted small">Les inscriptions sont closes.</p>
           } @else if (isFull()) {
             <p class="muted small">L'évènement est complet.</p>
           } @else {
-            <!--<button class="btn btn-ghost btn-block" type="button" [disabled]="busy()" (click)="toggleRegistration()">-->
-            <button class="btn btn-ghost btn-block" type="button" [disabled]="busy()" (click)="registerUser()">
+            <button
+              class="btn btn-ghost btn-block"
+              type="button"
+              [disabled]="busy()"
+              (click)="register()"
+            >
               S'inscrire
             </button>
           }
@@ -128,4 +196,32 @@
       </section>
     </aside>
   </div>
+
+  @if (showParticipants()) {
+    <div class="backdrop" (click)="showParticipants.set(false)"></div>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Participants">
+      <div class="section-header">
+        <h2>Participants ({{ e.participants.length }})</h2>
+        <button
+          class="btn btn-ghost"
+          type="button"
+          aria-label="Fermer"
+          (click)="showParticipants.set(false)"
+        >
+          <app-icon name="x" />
+        </button>
+      </div>
+      <ul class="participant-list">
+        @for (p of e.participants; track p.id) {
+          <li>
+            <app-icon name="user" />
+            <div>
+              <strong>{{ p.firstName }} {{ p.lastName }}</strong>
+              <span class="muted">{{ p.pole.name }}</span>
+            </div>
+          </li>
+        }
+      </ul>
+    </div>
+  }
 }

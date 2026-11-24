@@ -1,11 +1,14 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
-import { ApiError } from './mock-http';
 
 export interface Toast {
   id: number;
   kind: 'success' | 'error' | 'info';
   message: string;
 }
+
+const TOAST_DURATION_MS = 4500;
+const DEFAULT_ERROR_MESSAGE = 'Une erreur inattendue est survenue';
 
 @Injectable({ providedIn: 'root' })
 export class ToastService {
@@ -20,18 +23,9 @@ export class ToastService {
     this.show('info', message);
   }
 
+  /** Accepts a message or an HTTP error (uses the backend's message when there is one). */
   error(errorOrMessage: unknown): void {
-    let message = 'Une erreur inattendue est survenue';
-
-    if (errorOrMessage instanceof ApiError) {
-      message = errorOrMessage.errors.join(' · ');
-    } else if (typeof errorOrMessage === 'string') {
-      message = errorOrMessage; 
-    } else if (typeof errorOrMessage === 'object' && errorOrMessage !== null) {
-      const body = (errorOrMessage as any).error;
-      message = typeof body === 'string' ? body : body?.detail ?? body?.message ?? message;
-    } 
-    this.show('error', message);
+    this.show('error', toErrorMessage(errorOrMessage));
   }
 
   dismiss(id: number): void {
@@ -41,6 +35,16 @@ export class ToastService {
   private show(kind: Toast['kind'], message: string): void {
     const id = this.nextId++;
     this.toasts.update((list) => [...list, { id, kind, message }]);
-    setTimeout(() => this.dismiss(id), 4500);
+    setTimeout(() => this.dismiss(id), TOAST_DURATION_MS);
   }
+}
+
+function toErrorMessage(error: unknown): string {
+  if (typeof error === 'string') return error;
+  if (error instanceof HttpErrorResponse) {
+    const body = error.error;
+    if (typeof body === 'string' && body) return body;
+    return body?.detail ?? body?.message ?? DEFAULT_ERROR_MESSAGE;
+  }
+  return DEFAULT_ERROR_MESSAGE;
 }

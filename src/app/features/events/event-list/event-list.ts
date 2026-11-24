@@ -2,8 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { debounceTime, startWith, switchMap, tap } from 'rxjs';
-import { toLocalDateTime } from '../../../core/data/mock-data';
+import { debounceTime, map, startWith, switchMap, tap } from 'rxjs';
 import {
   EVENT_STATUS_LABELS,
   EventFilter,
@@ -15,7 +14,8 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { EventTypeService } from '../../../core/services/event-type.service';
 import { EventService } from '../../../core/services/event.service';
-import { PoleService } from '../../../core/services/pole.service';
+import { UserService } from '../../../core/services/user.service';
+import { toLocalDateTime } from '../../../core/utils/date.utils';
 import { EventCard } from '../../../shared/components/event-card';
 import { Icon } from '../../../shared/components/icon';
 
@@ -29,14 +29,19 @@ export class EventList {
   protected readonly auth = inject(AuthService);
   private readonly eventService = inject(EventService);
 
-  protected readonly poles = toSignal(inject(PoleService).getPoles(), { initialValue: [] });
-  protected readonly eventTypes = toSignal(inject(EventTypeService).getAllEventTypes(), { initialValue: [] });
+  protected readonly users = toSignal(inject(UserService).getUsers(), { initialValue: [] });
+  protected readonly eventTypes = toSignal(inject(EventTypeService).getAllEventTypes(), {
+    initialValue: [],
+  });
   protected readonly statusOptions = Object.entries(EVENT_STATUS_LABELS) as [EventStatus, string][];
-  protected readonly visibilityOptions = Object.entries(VISIBILITY_LABELS) as [Visibility, string][];
+  protected readonly visibilityOptions = Object.entries(VISIBILITY_LABELS) as [
+    Visibility,
+    string,
+  ][];
 
   protected readonly filters = inject(FormBuilder).group({
     search: [''],
-    poleId: [null as number | null],
+    creatorId: [null as number | null],
     eventTypeId: [null as number | null],
     status: [null as EventStatus | null],
     visibility: [null as Visibility | null],
@@ -66,6 +71,9 @@ export class EventList {
         debounceTime(200),
         tap(() => this.loading.set(true)),
         switchMap(() => this.eventService.getEvents(this.toFilter())),
+        map((events) =>
+          this.filters.controls.mine.value ? events.filter((e) => this.isMine(e)) : events,
+        ),
         takeUntilDestroyed(),
       )
       .subscribe((events) => {
@@ -78,18 +86,23 @@ export class EventList {
     this.filters.reset({ mine: false, includePast: false });
   }
 
+  /** Events I organise or am registered to. */
+  private isMine(event: PulseEvent): boolean {
+    return this.auth.isOrganiser(event) || this.auth.isUserRegistered(event);
+  }
+
   private toFilter(): EventFilter {
     const f = this.filters.getRawValue();
-    const today = toLocalDateTime(new Date()).slice(0, 10);
+    // Past events are hidden unless asked for (an explicit "Du" date takes precedence).
+    const defaultStart = f.includePast ? null : toLocalDateTime(new Date());
     return {
       search: f.search,
-      poleId: f.poleId,
+      creatorId: f.creatorId,
       eventTypeId: f.eventTypeId,
       status: f.status,
       visibility: f.visibility,
-      startFrom: f.startFrom ? `${f.startFrom}T00:00:00` : null,
+      startFrom: f.startFrom ? `${f.startFrom}T00:00:00` : defaultStart,
       startTo: f.startTo ? `${f.startTo}T23:59:59` : null,
-      creatorId: f.mine ? this.auth.currentUser()?.id : null,
     };
   }
 }

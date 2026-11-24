@@ -12,7 +12,9 @@ import { ConfirmService } from '../../core/services/confirm.service';
         <h2>{{ request.title }}</h2>
         <p>{{ request.message }}</p>
         <div class="modal-actions">
-          <button class="btn btn-ghost" type="button" (click)="confirm.answer(false)">Annuler</button>
+          <button class="btn btn-ghost" type="button" (click)="confirm.answer(false)">
+            Annuler
+          </button>
           <button
             class="btn"
             type="button"

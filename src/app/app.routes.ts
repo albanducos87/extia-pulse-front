@@ -6,7 +6,7 @@ import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 export const routes: Routes = [
   {
     path: 'callback',
-    loadComponent: () => import('./features/auth/callback/callback').then((m) => m.Callback)
+    loadComponent: () => import('./features/auth/callback/callback').then((m) => m.Callback),
   },
   {
     path: '',
@@ -22,13 +22,19 @@ export const routes: Routes = [
       {
         path: 'profile',
         title: 'Mon profil · Extia Pulse',
-        loadComponent: () => import('./features/profile/profile').then((m) => m.Profile)
+        loadComponent: () => import('./features/profile/profile').then((m) => m.Profile),
       },
       {
         path: 'events',
         title: 'Évènements · Extia Pulse',
         loadComponent: () =>
           import('./features/events/event-list/event-list').then((m) => m.EventList),
+      },
+      {
+        path: 'invitations',
+        title: 'Mes invitations · Extia Pulse',
+        loadComponent: () =>
+          import('./features/invitations/invitations').then((m) => m.Invitations),
       },
       {
         path: 'events/new',

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { RouterLink } from '@angular/router';
 import { PulseEvent } from '../../core/models/event.model';
 import { AuthService } from '../../core/services/auth.service';
+import { isEventPast } from '../../core/utils/event.utils';
 import { StatusLabelPipe } from '../pipes/labels.pipe';
 import { Icon } from './icon';
 
@@ -12,7 +13,12 @@ import { Icon } from './icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let e = event();
-    <a class="event-card" [routerLink]="['/events', e.id]" [class.is-cancelled]="e.status === 'CANCELLED'">
+    <a
+      class="event-card"
+      [routerLink]="['/events', e.id]"
+      [class.is-cancelled]="e.status === 'CANCELLED'"
+      [class.is-past]="isPast()"
+    >
       <div class="date-block">
         <span class="date-day">{{ e.startAt | date: 'd' }}</span>
         <span class="date-month">{{ e.startAt | date: 'MMM' }}</span>
@@ -35,6 +41,14 @@ import { Icon } from './icon';
           } @else if (e.onlineUrl) {
             <li><app-icon name="video" [size]="14" />En ligne</li>
           }
+          <li>
+            <app-icon name="user" [size]="14" />
+            @if (isMine()) {
+              Organisé par vous
+            } @else {
+              Organisé par {{ e.creatorFirstName }} {{ e.creatorLastName }}
+            }
+          </li>
         </ul>
       </div>
     </a>
@@ -45,4 +59,6 @@ export class EventCard {
 
   readonly event = input.required<PulseEvent>();
   protected readonly isRegistered = computed(() => this.auth.isUserRegistered(this.event()));
+  protected readonly isPast = computed(() => isEventPast(this.event()));
+  protected readonly isMine = computed(() => this.auth.isOrganiser(this.event()));
 }
