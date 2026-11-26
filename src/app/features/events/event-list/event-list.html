@@ -3,11 +3,9 @@
     <h1>Évènements</h1>
     <p class="muted">Tous les évènements de l'entreprise, les vôtres comme ceux des autres.</p>
   </div>
-  @if (auth.canManageEvents()) {
-    <a class="btn btn-primary" routerLink="/events/new"
-      ><app-icon name="plus" />Créer un évènement</a
-    >
-  }
+  <a class="btn btn-primary" routerLink="/events/new"
+    ><app-icon name="plus" />Créer un évènement</a
+  >
 </header>
 
 <form class="card filters" [class.filters-open]="filtersOpen()" [formGroup]="filters">

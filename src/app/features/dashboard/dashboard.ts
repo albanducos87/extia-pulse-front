@@ -27,37 +27,52 @@ export class Dashboard {
   private readonly createdEvents = signal<PulseEvent[]>([]);
 
   private readonly now = toLocalDateTime(new Date());
+  /** Past events are hidden unless the user asks for them. */
+  protected readonly includePast = signal(false);
 
-  /** Upcoming, non-cancelled events I'm registered to. */
-  protected readonly participations = computed(() =>
-    this.allEvents()
+  /** Non-cancelled events I'm registered to, excluding those I organise (listed separately). */
+  private readonly allParticipations = computed(() => {
+    const organisedIds = new Set(this.createdEvents().map((e) => e.id));
+    return this.allEvents()
       .filter(
-        (e) => e.startAt >= this.now && e.status !== 'CANCELLED' && this.auth.isUserRegistered(e),
+        (e) =>
+          e.status !== 'CANCELLED' &&
+          !organisedIds.has(e.id) &&
+          !this.auth.isOrganiser(e) &&
+          this.auth.isUserRegistered(e),
       )
-      .sort(byStartDate),
+      .sort(byStartDate);
+  });
+  private readonly upcomingParticipations = computed(() =>
+    this.allParticipations().filter((e) => this.isUpcoming(e)),
+  );
+  protected readonly participations = computed(() =>
+    this.includePast() ? this.allParticipations() : this.upcomingParticipations(),
   );
 
-  /** Upcoming events I organise (drafts included). */
+  /** Events I organise (drafts included). */
+  private readonly allOrganised = computed(() => [...this.createdEvents()].sort(byStartDate));
+  private readonly upcomingOrganised = computed(() =>
+    this.allOrganised().filter((e) => this.isUpcoming(e)),
+  );
   protected readonly organised = computed(() =>
-    this.createdEvents()
-      .filter((e) => e.startAt >= this.now)
-      .sort(byStartDate),
+    this.includePast() ? this.allOrganised() : this.upcomingOrganised(),
   );
 
   protected readonly stats = computed(() => [
     {
       label: 'Participations à venir',
-      value: this.participations().length,
+      value: this.upcomingParticipations().length,
       icon: 'calendar' as const,
     },
     {
       label: 'Évènements organisés à venir',
-      value: this.organised().length,
+      value: this.upcomingOrganised().length,
       icon: 'user' as const,
     },
     {
       label: 'Brouillons',
-      value: this.organised().filter((e) => e.status === 'DRAFT').length,
+      value: this.upcomingOrganised().filter((e) => e.status === 'DRAFT').length,
       icon: 'edit' as const,
     },
   ]);
@@ -83,5 +98,9 @@ export class Dashboard {
         },
         error: (err) => this.toast.error(err),
       });
+  }
+
+  private isUpcoming(event: PulseEvent): boolean {
+    return event.startAt >= this.now;
   }
 }

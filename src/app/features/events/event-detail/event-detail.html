@@ -64,10 +64,159 @@
   </header>
 
   <div class="detail-layout">
-    <section class="card">
-      <h2>Description</h2>
-      <p class="description">{{ e.description || 'Aucune description.' }}</p>
-    </section>
+    <div class="detail-main">
+      <section class="card">
+        <h2>Description</h2>
+        <p class="description">{{ e.description || 'Aucune description.' }}</p>
+      </section>
+
+      @if (canInvite()) {
+        <section class="card form-section">
+          <div class="section-header">
+            <h2>Invitations</h2>
+            @if (pendingInvitations().length || e.capacity) {
+              <span class="small muted">
+                {{ pendingInvitations().length }} en attente
+                @if (selectedUsers().length) {
+                  · {{ selectedUsers().length }} sélectionné·e{{
+                    selectedUsers().length > 1 ? 's' : ''
+                  }}
+                }
+                @if (remainingInvites() !== null) {
+                  · {{ remainingInvites() }} place{{
+                    remainingInvites()! > 1 ? 's' : ''
+                  }}
+                  disponible{{ remainingInvites()! > 1 ? 's' : '' }}
+                }
+              </span>
+            }
+          </div>
+          <p class="muted small">
+            Les collaborateurs invités retrouveront l'évènement dans leur onglet « Invitations ».
+          </p>
+
+          <div class="invite-picker">
+            <label class="field field-search">
+              <span class="sr-only">Rechercher un collaborateur à inviter</span>
+              <app-icon name="search" [size]="16" />
+              <input
+                type="search"
+                autocomplete="off"
+                [disabled]="invitesFull() || inviting()"
+                [placeholder]="invitesFull() ? 'Capacité atteinte' : 'Nom, prénom, e-mail ou pôle…'"
+                [value]="inviteSearch()"
+                (input)="inviteSearch.set($any($event.target).value)"
+                (keydown.enter)="onInviteEnter($event)"
+                (keydown.escape)="inviteSearch.set('')"
+              />
+            </label>
+
+            @if (inviteSearch().trim() && !invitesFull()) {
+              <ul class="invite-suggestions" role="listbox" aria-label="Suggestions">
+                @for (u of inviteCandidates(); track u.id) {
+                  <li>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      [disabled]="inviting()"
+                      (click)="select([u])"
+                    >
+                      <span class="avatar avatar-sm">{{ u.firstName[0] }}{{ u.lastName[0] }}</span>
+                      <span class="invite-user">
+                        <strong>{{ u.firstName }} {{ u.lastName }}</strong>
+                        <span class="muted small">{{ u.email }} · {{ u.pole?.name }}</span>
+                      </span>
+                      <app-icon name="plus" [size]="16" />
+                    </button>
+                  </li>
+                } @empty {
+                  <li class="muted small invite-empty">Aucun collaborateur trouvé.</li>
+                }
+              </ul>
+            }
+          </div>
+
+          <div class="invite-actions">
+            @if (unselectedPoleMembers().length) {
+              <button
+                class="btn btn-ghost btn-sm"
+                type="button"
+                [disabled]="!canSelectWholePole() || inviting()"
+                [title]="
+                  canSelectWholePole() ? '' : 'Pas assez de places pour inviter tout le pôle'
+                "
+                (click)="select(unselectedPoleMembers())"
+              >
+                <app-icon name="users" [size]="16" />Sélectionner tout le pôle {{ e.poleName }} ({{
+                  unselectedPoleMembers().length
+                }})
+              </button>
+            }
+            @if (selectedUsers().length) {
+              <button
+                class="btn btn-ghost btn-sm"
+                type="button"
+                [disabled]="inviting()"
+                (click)="clearSelection()"
+              >
+                <app-icon name="x" [size]="16" />Tout retirer
+              </button>
+            }
+          </div>
+
+          @if (selectedUsers().length) {
+            <ul class="invite-chips" aria-label="Collaborateurs sélectionnés">
+              @for (u of selectedUsers(); track u.id) {
+                <li class="chip chip-invite">
+                  {{ u.firstName }} {{ u.lastName }}
+                  <button
+                    type="button"
+                    [disabled]="inviting()"
+                    [attr.aria-label]="'Retirer ' + u.firstName + ' ' + u.lastName"
+                    (click)="unselect(u)"
+                  >
+                    <app-icon name="x" [size]="12" />
+                  </button>
+                </li>
+              }
+            </ul>
+            <div class="form-actions">
+              <button
+                class="btn btn-primary"
+                type="button"
+                [disabled]="inviting()"
+                (click)="sendInvitations()"
+              >
+                <app-icon name="mail" [size]="16" />{{
+                  inviting()
+                    ? 'Envoi…'
+                    : 'Envoyer ' +
+                      selectedUsers().length +
+                      ' invitation' +
+                      (selectedUsers().length > 1 ? 's' : '')
+                }}
+              </button>
+            </div>
+          }
+
+          @if (invitesFull() && !selectedUsers().length) {
+            <small class="muted small"
+              >Capacité atteinte : augmentez-la pour inviter d'autres personnes.</small
+            >
+          }
+
+          @if (pendingInvitations().length) {
+            <h3 class="small muted">Invitations en attente</h3>
+            <ul class="invite-chips" aria-label="Invitations en attente">
+              @for (i of pendingInvitations(); track i.id) {
+                <li class="chip">{{ i.user.firstName }} {{ i.user.lastName }}</li>
+              }
+            </ul>
+          }
+        </section>
+      }
+    </div>
 
     <aside class="detail-side">
       <section class="card">

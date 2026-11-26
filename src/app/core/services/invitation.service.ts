@@ -8,9 +8,9 @@ import { AuthService } from './auth.service';
 /**
  * Backend contract:
  *  GET /api/invitation/user/{userId}          -> InvitationDto[]  (pending invitations only)
+ *  GET /api/invitation/event/{eventId}        -> InvitationDto[]  (all invitations of an event)
+ *  POST /api/invitation/{eventId}/{userId}    -> invites a user to an event
  *  PUT /api/invitation/{eventId}/{action}     -> answers the invitation (action = accept | decline)
- *                                                and deletes it.
- * Invitations themselves are created with the event (EventRequest.invitedUserIds).
  */
 @Injectable({ providedIn: 'root' })
 export class InvitationService {
@@ -28,6 +28,15 @@ export class InvitationService {
       switchMap((user) => this.http.get<Invitation[]>(`${this.apiUrl}/user/${user.id}`)),
       tap((list) => this.invitations.set(list)),
     );
+  }
+
+  /** Invitations sent for an event (organiser view on the event page). */
+  getEventInvitations(eventId: number): Observable<Invitation[]> {
+    return this.http.get<Invitation[]>(`${this.apiUrl}/event/${eventId}`);
+  }
+
+  invite(eventId: number, userId: number): Observable<Invitation> {
+    return this.http.post<Invitation>(`${this.apiUrl}/${eventId}/${userId}`, null);
   }
 
   /** Answers the invitation to the given event; the backend deletes it, so it leaves the list. */

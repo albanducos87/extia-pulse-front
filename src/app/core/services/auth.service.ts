@@ -23,8 +23,8 @@ export class AuthService {
   private currentUser$?: Observable<AppUser>;
 
   readonly isAdmin = computed(() => this.user()?.role === 'ADMIN');
-  /** Only admins can create events for now. */
-  readonly canManageEvents = this.isAdmin;
+  /** Any authenticated user can create events. */
+  readonly canManageEvents = computed(() => !!this.user());
 
   /** Called once at startup: completes the OIDC flow and loads the application user. */
   init(): void {

@@ -1,0 +1,30 @@
+diff --git a/src/app/features/dashboard/dashboard.ts b/src/app/features/dashboard/dashboard.ts
+index 58dd8ce..514b112 100644
+--- a/src/app/features/dashboard/dashboard.ts
++++ b/src/app/features/dashboard/dashboard.ts
+@@ -30,12 +30,19 @@ export class Dashboard {
+   /** Past events are hidden unless the user asks for them. */
+   protected readonly includePast = signal(false);
+ 
+-  /** Non-cancelled events I'm registered to. */
+-  private readonly allParticipations = computed(() =>
+-    this.allEvents()
+-      .filter((e) => e.status !== 'CANCELLED' && this.auth.isUserRegistered(e))
+-      .sort(byStartDate),
+-  );
++  /** Non-cancelled events I'm registered to, excluding those I organise (listed separately). */
++  private readonly allParticipations = computed(() => {
++    const organisedIds = new Set(this.createdEvents().map((e) => e.id));
++    return this.allEvents()
++      .filter(
++        (e) =>
++          e.status !== 'CANCELLED' &&
++          !organisedIds.has(e.id) &&
++          !this.auth.isOrganiser(e) &&
++          this.auth.isUserRegistered(e),
++      )
++      .sort(byStartDate);
++  });
+   private readonly upcomingParticipations = computed(() =>
+     this.allParticipations().filter((e) => this.isUpcoming(e)),
+   );

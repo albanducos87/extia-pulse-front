@@ -870,6 +870,7 @@ select.ng-invalid.ng-touched {
   gap: 20px;
   align-items: start;
 }
+.detail-main,
 .detail-side {
   display: flex;
   flex-direction: column;

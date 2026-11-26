@@ -21,7 +21,7 @@ export const appConfig: ApplicationConfig = {
         clientId: environment.cognito.clientId,
         redirectUrl: `${window.location.origin}/callback`,
         postLogoutRedirectUri: window.location.origin,
-        scope: 'openid',
+        scope: 'openid email profile',
         responseType: 'code',
         silentRenew: true,
         useRefreshToken: true,

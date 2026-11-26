@@ -63,9 +63,7 @@ export class Shell {
       icon: 'mail',
       badge: this.invitations.pendingCount(),
     },
-    ...(this.auth.canManageEvents()
-      ? [{ label: 'Créer un évènement', path: '/events/new', icon: 'plus' as const }]
-      : []),
+    { label: 'Créer un évènement', path: '/events/new', icon: 'plus' as const }
   ]);
 
   protected readonly adminItems: NavItem[] = [

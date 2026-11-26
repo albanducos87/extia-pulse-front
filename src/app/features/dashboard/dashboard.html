@@ -5,11 +5,7 @@
       Vos prochains évènements : ceux auxquels vous participez et ceux que vous organisez.
     </p>
   </div>
-  @if (auth.canManageEvents()) {
-    <a class="btn btn-primary" routerLink="/events/new"
-      ><app-icon name="plus" />Créer un évènement</a
-    >
-  }
+  <a class="btn btn-primary" routerLink="/events/new"><app-icon name="plus" />Créer un évènement</a>
 </header>
 
 <section class="stats">
@@ -24,6 +20,14 @@
   }
 </section>
 
+<label class="checkbox">
+  <input
+    type="checkbox"
+    [checked]="includePast()"
+    (change)="includePast.set($any($event.target).checked)"
+  />Inclure les évènements passés
+</label>
+
 <section class="section">
   <div class="section-header">
     <h2>Mes participations</h2>
@@ -36,7 +40,9 @@
       @for (event of participations(); track event.id) {
         <app-event-card [event]="event" />
       } @empty {
-        <p class="empty">Vous n'êtes inscrit·e à aucun évènement à venir.</p>
+        <p class="empty">
+          Vous n'êtes inscrit·e à aucun évènement{{ includePast() ? '' : ' à venir' }}.
+        </p>
       }
     </div>
   }
@@ -52,7 +58,9 @@
         @for (event of organised(); track event.id) {
           <app-event-card [event]="event" />
         } @empty {
-          <p class="empty">Vous n'organisez aucun évènement à venir.</p>
+          <p class="empty">
+            Vous n'organisez aucun évènement{{ includePast() ? '' : ' à venir' }}.
+          </p>
         }
       </div>
     }

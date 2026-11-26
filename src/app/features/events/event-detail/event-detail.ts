@@ -1,17 +1,33 @@
 import { DatePipe, Location } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable, finalize, switchMap, tap } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  catchError,
+  filter,
+  finalize,
+  forkJoin,
+  switchMap,
+  take,
+  tap,
+} from 'rxjs';
 import { EventStatus, PulseEvent } from '../../../core/models/event.model';
+import { Invitation } from '../../../core/models/invitation.model';
+import { AppUser } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { EventService } from '../../../core/services/event.service';
+import { InvitationService } from '../../../core/services/invitation.service';
+import { UserService } from '../../../core/services/user.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { isEventFull, isEventPast, isRsvpClosed } from '../../../core/utils/event.utils';
 import { Icon } from '../../../shared/components/icon';
 import { StatusLabelPipe } from '../../../shared/pipes/labels.pipe';
 import { downloadBlob } from '../../../core/utils/download.utils';
+
+const MAX_INVITE_SUGGESTIONS = 8;
 
 @Component({
   selector: 'app-event-detail',
@@ -23,6 +39,8 @@ import { downloadBlob } from '../../../core/utils/download.utils';
 export class EventDetail {
   protected readonly auth = inject(AuthService);
   private readonly eventService = inject(EventService);
+  private readonly invitationService = inject(InvitationService);
+  private readonly userService = inject(UserService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -48,7 +66,88 @@ export class EventDetail {
     return Math.min(100, (event.participants.length / event.capacity) * 100);
   });
 
+  // --- Invitations (organiser / admin only) ---
+  protected readonly canInvite = computed(() =>
+    this.check((e) => this.auth.canEdit(e) && e.status !== 'CANCELLED' && !isEventPast(e)),
+  );
+  /** Loaded lazily, only once the user is allowed to invite. */
+  private readonly users = toSignal(
+    toObservable(this.canInvite).pipe(
+      filter(Boolean),
+      take(1),
+      switchMap(() => this.userService.getUsers({ active: true })),
+    ),
+    { initialValue: [] as AppUser[] },
+  );
+  protected readonly invitations = signal<Invitation[]>([]);
+  protected readonly inviting = signal(false);
+  protected readonly inviteSearch = signal('');
+  /** Users picked in the search box, not invited until the organiser sends them. */
+  protected readonly selectedIds = signal<number[]>([]);
+  protected readonly pendingInvitations = computed(() =>
+    this.invitations().filter((i) => i.status === 'PENDING'),
+  );
+  /** Users who can still be invited: not the organiser, not already invited nor participating. */
+  private readonly invitableUsers = computed(() => {
+    const event = this.event();
+    if (!event) return [];
+    const excluded = new Set([
+      event.creatorId,
+      ...event.participants.map((p) => p.id),
+      ...this.invitations().map((i) => i.user.id),
+    ]);
+    return this.users().filter((u) => !excluded.has(u.id));
+  });
+  protected readonly selectedUsers = computed(() => {
+    const ids = new Set(this.selectedIds());
+    return this.invitableUsers().filter((u) => ids.has(u.id));
+  });
+  protected readonly inviteCandidates = computed(() => {
+    const search = this.inviteSearch().trim().toLowerCase();
+    if (!search) return [];
+    const selected = new Set(this.selectedIds());
+    return this.invitableUsers()
+      .filter(
+        (u) =>
+          !selected.has(u.id) &&
+          `${u.firstName} ${u.lastName} ${u.email} ${u.pole?.name ?? ''}`
+            .toLowerCase()
+            .includes(search),
+      )
+      .slice(0, MAX_INVITE_SUGGESTIONS);
+  });
+  protected readonly unselectedPoleMembers = computed(() => {
+    const poleId = this.event()?.poleId;
+    const selected = new Set(this.selectedIds());
+    return this.invitableUsers().filter((u) => u.pole?.id === poleId && !selected.has(u.id));
+  });
+  /** Seats left once participants, pending invitations and the selection are counted (null = unlimited). */
+  protected readonly remainingInvites = computed(() => {
+    const event = this.event();
+    if (!event?.capacity) return null;
+    return Math.max(
+      0,
+      event.capacity -
+        event.participants.length -
+        this.pendingInvitations().length -
+        this.selectedUsers().length,
+    );
+  });
+  protected readonly invitesFull = computed(() => this.remainingInvites() === 0);
+  protected readonly canSelectWholePole = computed(() => {
+    const remaining = this.remainingInvites();
+    return remaining === null || this.unselectedPoleMembers().length <= remaining;
+  });
+
   constructor() {
+    toObservable(this.canInvite)
+      .pipe(
+        filter(Boolean),
+        switchMap(() => this.loadInvitations()),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
     inject(ActivatedRoute)
       .paramMap.pipe(
         tap(() => this.loading.set(true)),
@@ -143,8 +242,64 @@ export class EventDetail {
     const event = this.event()!;
     this.eventService.downloadIcs(event.id).subscribe({
       next: ({ blob, fileName }) => downloadBlob(blob, fileName),
-      error: () => this.toast.error("Impossible d'exporter l'évènement")
+      error: () => this.toast.error("Impossible d'exporter l'évènement"),
     });
+  }
+
+  protected select(users: AppUser[]): void {
+    const remaining = this.remainingInvites();
+    if (!users.length || (remaining !== null && users.length > remaining)) return;
+    this.selectedIds.update((ids) => [
+      ...ids,
+      ...users.map((u) => u.id).filter((id) => !ids.includes(id)),
+    ]);
+    this.inviteSearch.set('');
+  }
+
+  protected unselect(user: AppUser): void {
+    this.selectedIds.update((ids) => ids.filter((id) => id !== user.id));
+  }
+
+  protected clearSelection(): void {
+    this.selectedIds.set([]);
+  }
+
+  protected sendInvitations(): void {
+    const users = this.selectedUsers();
+    if (!users.length) return;
+    const eventId = this.event()!.id;
+    this.inviting.set(true);
+    forkJoin(users.map((u) => this.invitationService.invite(eventId, u.id)))
+      .pipe(finalize(() => this.inviting.set(false)))
+      .subscribe({
+        next: () => {
+          this.selectedIds.set([]);
+          this.toast.success(
+            users.length > 1 ? `${users.length} invitations envoyées` : 'Invitation envoyée',
+          );
+          this.loadInvitations().subscribe();
+        },
+        error: (err) => {
+          this.toast.error(err);
+          // Some invitations may have gone through before the failure: those leave the
+          // selection automatically once reloaded (invited users are no longer invitable).
+          this.loadInvitations().subscribe();
+        },
+      });
+  }
+
+  /** Enter in the search box selects the first suggestion. */
+  protected onInviteEnter(domEvent: Event): void {
+    domEvent.preventDefault();
+    const first = this.inviteCandidates()[0];
+    if (first) this.select([first]);
+  }
+
+  private loadInvitations(): Observable<Invitation[]> {
+    return this.invitationService.getEventInvitations(this.event()!.id).pipe(
+      tap((list) => this.invitations.set(list)),
+      catchError(() => EMPTY),
+    );
   }
 
   /** Evaluates a predicate on the loaded event (false while loading). */
