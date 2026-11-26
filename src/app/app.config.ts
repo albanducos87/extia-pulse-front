@@ -28,6 +28,7 @@ export const appConfig: ApplicationConfig = {
         secureRoutes: [environment.apiUrl],
         logLevel: LogLevel.Debug,
         disableRefreshTokenOfflineAccessScopeWarning: true,
+        customParamsAuthRequest: { lang: 'fr' }
       },
     }),
   ],
